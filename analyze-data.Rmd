@@ -1,0 +1,104 @@
+---
+title: "Analyze: How do Casual Users and Annual Subscribers Differ?"
+author: "Andrew Luyt"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load data, include=FALSE}
+library(tidyverse)
+library(data.table)
+DATA = "data/alldata.csv"
+
+df <- fread(
+  DATA,
+  colClasses = c(start_station_id = 'character',
+                 end_station_id = 'character'),
+  stringsAsFactors = TRUE
+)
+
+```
+
+## How do they differ on type of bike ridden?
+Casuals are more likely to choose a docked bike and less likely to choose a
+classic bike.
+```{r differ on bike type, echo=FALSE}
+# df %>%
+#   group_by(member_casual, rideable_type) %>%
+#   summarise(n = n(), .groups = "drop_last") %>%
+#   mutate(percentage = n / sum(n) * 100)
+
+df %>%
+  ggplot(aes(member_casual, fill = rideable_type)) +
+  geom_bar(position = "fill")
+
+```
+
+## Do they differ in *what hour* rides are taken?
+There seems to be a slight tendency for casuals to start their rides later.
+The tendency is similar for ending times (not shown.)
+
+```{r differ by hour, echo=FALSE}
+df %>% 
+  ggplot(aes(x=member_casual, y=hour(started_at), fill = member_casual)) +
+  geom_boxplot() +
+  labs(x="", y = "hour of trip start")
+```
+
+## Are some stations preferred by casuals?
+Dramatically so! Some stations are 100% casual use and others are near-zero!
+The median station is 42% casual use.
+
+```{r station use, echo=FALSE}
+df %>% 
+  group_by(start_station_id, member_casual) %>% 
+  summarise(n = n(), .groups = 'drop_last') %>% 
+  mutate(percentage = n / sum(n) * 100) %>% 
+  filter(member_casual == "casual") %>% 
+  ggplot(aes(percentage)) + 
+  geom_histogram(bins = 30, fill='blue') +
+  labs(title="Percentage of casual users by station",
+       subtitle = "Stations vary from 100% casual to near-zero!",
+       x = 'Percentage of casuals',
+       y = 'Number of stations')
+
+# df %>%
+#   group_by(start_station_id, member_casual) %>%
+#   summarise(n = n(), .groups = 'drop_last') %>%
+#   mutate(percentage = n / sum(n) * 100) %>%
+#   filter(member_casual == "casual") %>%
+#   ungroup() %>%
+#   summarise(median_casual_station_pct = median(percentage))
+```
+
+## TODO: `cut` stations by trip volume, into deciles
+Examine proportion of user types for each bin.  Are busier stations preferred
+by some user types?
+
+This will probably be much clearer than the histogram.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
