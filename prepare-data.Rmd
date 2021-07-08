@@ -1,0 +1,58 @@
+---
+title: "Prepare Cyclistic Dataset"
+output: github_document
+---
+
+## Executive Summary
+
+- Do we have the appropriate rights to use this data?
+  - ![checkmark](img/checkmark.png) Yes, see "Data Rights", below.
+- Does the data seem complete?
+  - **? Problematic.** 10% of the station names are missing. It might be possible to
+    fill this in using the geographical coordinates which are almost
+    entirely complete.
+- Has it been anonymized?
+  - ![checkmark](img/checkmark.png) Yes. Only an anonymous `ride_id` identifies
+    the ride.
+- Does it appear we can perform the business task with this dataset?
+  - **? Problematic.** It might be difficult to infer *how* or *why* the bikes are being used
+  - We will want to obtain map data for Chicago so we can sensibly interpret
+    the location information.
+    - Tableau can help with this visualization
+    - Maps that show districting information (commercial, industrial, 
+    residential, etc) might be useful in teasing out usage patterns
+    by user type.
+
+## Data Rights
+The data being used is available under 
+[this licence.](https://www.divvybikes.com/data-license-agreement)
+The agreement allows us the right to independently analyze this dataset. 
+
+## Detailed examination
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+```
+
+```{r load data, include=FALSE}
+df <- read_csv("data/202105-divvy-tripdata.csv",
+               col_types = cols(member_casual = 'f',
+                                rideable_type = 'f'))
+```
+Let's examine our raw dataset.  The output is long, but it gives us a high-level
+view of all the data available to us.
+```{r summarize}
+names(df)  # What variables are in the dataset?
+skimr::skim(df)
+```
+### Observations
+
+- About 10% of the observations are missing the station name and/or ID.  However,
+almost all rides have the latitude/longitude information and we might be able
+to use this to fill in the missing stations.  We'll investigate this in a 
+later step.
+- The May dataset includes some rides from June.
+- It's worth noting that the times are recorded down to the second.
+
