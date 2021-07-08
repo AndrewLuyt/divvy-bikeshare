@@ -18,9 +18,12 @@ Prepare Cyclistic Dataset
     -   We will want to obtain map data for Chicago so we can sensibly
         interpret the location information.
         -   Tableau can help with this visualization
+            -   has map data built-in
         -   Maps that show districting information (commercial,
             industrial, residential, etc) might be useful in teasing out
             usage patterns by user type.
+-   **Data has been limited to sources as new or newer than April 2020**
+    to find only current trends.
 
 ## Data Rights
 
@@ -96,7 +99,7 @@ Data summary
 | started\_at    |          0 |              1 | 2021-05-01 00:00:11 | 2021-05-31 23:59:16 | 2021-05-19 07:44:31 |    447224 |
 | ended\_at      |          0 |              1 | 2021-05-01 00:03:26 | 2021-06-10 22:17:11 | 2021-05-19 07:59:43 |    447217 |
 
-### Observations
+### Observations & Sanity Checks
 
 -   About 10% of the observations are missing the station name and/or
     ID. However, almost all rides have the latitude/longitude
@@ -104,3 +107,44 @@ Data summary
     stations. We’ll investigate this in a later step.
 -   The May dataset includes some rides from June.
 -   It’s worth noting that the times are recorded down to the second.
+-   Cyclistic claims over 600 stations in the network. Dataset reports
+    about 680. seems fine.
+
+## Can we infer the station names based on coordinates?
+
+**Summary: Yes, looks like it.** Let’s see what the mean latitude &
+longitude is for each station name. Below, it appears at first glance
+the stations can be clearly identified by their map coordinates. Later,
+we will train a model to predict the station name based on the
+coordinates, and then fill in the matching `station_id`. In the context
+of finding differences between user types, prediction errors like
+placing a trip start at a station a few blocks away should not bias the
+analysis, and would also give us an extra 10% of data to work with.
+
+    ## # A tibble: 10 x 5
+    ##    start_station_name             xbar    ybar         sd_x         sd_y
+    ##    <chr>                         <dbl>   <dbl>        <dbl>        <dbl>
+    ##  1 2112 W Peterson Ave        -87.6836 41.9912 0.0000171412 0.0000184459
+    ##  2 63rd St Beach              -87.5761 41.7810 0.0000244744 0.0000374976
+    ##  3 900 W Harrison St          -87.6498 41.8748 0.0000216205 0.0000133410
+    ##  4 Aberdeen St & Jackson Blvd -87.6548 41.8777 0.0000456708 0.0000310051
+    ##  5 Aberdeen St & Monroe St    -87.6555 41.8804 0.0000589308 0.0000356697
+    ##  6 Aberdeen St & Randolph St  -87.6543 41.8841 0.0000279489 0.0000187970
+    ##  7 Ada St & 113th St          -87.6554 41.6876 0.0000650955 0.0000163417
+    ##  8 Ada St & Washington Blvd   -87.6612 41.8828 0.0000258620 0.0000184083
+    ##  9 Adler Planetarium          -87.6073 41.8661 0.0000300314 0.0000196980
+    ## 10 Albany Ave & 26th St       -87.7020 41.8445 0.0000239084 0.0000348550
+
+    ## # A tibble: 10 x 2
+    ##    start_station_name         start_lat
+    ##    <chr>                          <dbl>
+    ##  1 Aberdeen St & Jackson Blvd   41.8777
+    ##  2 Aberdeen St & Jackson Blvd   41.8778
+    ##  3 Aberdeen St & Jackson Blvd   41.8778
+    ##  4 Aberdeen St & Jackson Blvd   41.8778
+    ##  5 Aberdeen St & Jackson Blvd   41.8777
+    ##  6 Aberdeen St & Jackson Blvd   41.8777
+    ##  7 Aberdeen St & Monroe St      41.8804
+    ##  8 Aberdeen St & Jackson Blvd   41.8777
+    ##  9 Aberdeen St & Monroe St      41.8803
+    ## 10 Aberdeen St & Monroe St      41.8804

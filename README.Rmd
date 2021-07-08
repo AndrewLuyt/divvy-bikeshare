@@ -16,7 +16,8 @@ City of Chicago's **Divvy** bicycle sharing service. The data has been
 made available under [this licence.](https://www.divvybikes.com/data-license-agreement)
 For the purposes of this analysis, as part of Google's Data Analytics Certificate
 capstone project, we shall pretend this data is from the
-fictional company **Cyclistic**.
+fictional company **Cyclistic**. No claims will be made about Motivate International
+Inc. or Divvy.
 
 ## Business Task
 **How do annual members and casual riders differ** in their use of the
@@ -51,4 +52,4 @@ https://divvy-tripdata.s3.amazonaws.com/index.html
 
 ## NB
 Data sources extend back to 2013. These data may be too old to be relevant.
-Consider limiting data to the past 6-12 months.
+We will limit to data no older than April 2020.

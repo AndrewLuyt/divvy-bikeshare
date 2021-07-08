@@ -11,7 +11,8 @@ bicycle sharing service. The data has been made available under [this
 licence.](https://www.divvybikes.com/data-license-agreement) For the
 purposes of this analysis, as part of Google’s Data Analytics
 Certificate capstone project, we shall pretend this data is from the
-fictional company **Cyclistic**.
+fictional company **Cyclistic**. No claims will be made about Motivate
+International Inc. or Divvy.
 
 ## Business Task
 
@@ -42,13 +43,18 @@ Produce a report with the following deliverables:
 
 <https://divvy-tripdata.s3.amazonaws.com/index.html>
 
-### Data checklist
+## Data checklist
 
 -   ![](img/checkmark.png) Reliable: This is internal data
 -   ![](img/checkmark.png) Original: Yes, internal data.
--   **?** Comprehensive: 13 features: trip times, stations involved,
-    geographical coordinates, and membership information. It might be
-    difficult to infer how the bikes are being used.
+-   **?** Comprehensive: The data has 13 features: trip times, stations
+    involved, geographical coordinates, and membership information. It
+    might be difficult to infer how the bikes are being used.
 -   ![](img/checkmark.png) Current: The newest data is approximately one
     month old, and extends back to 2013.
 -   ![](img/checkmark.png) Cited: Yes
+
+## NB
+
+Data sources extend back to 2013. These data may be too old to be
+relevant. We will limit to data no older than April 2020.

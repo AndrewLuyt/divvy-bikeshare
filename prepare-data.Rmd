@@ -19,9 +19,12 @@ output: github_document
   - We will want to obtain map data for Chicago so we can sensibly interpret
     the location information.
     - Tableau can help with this visualization
+      - has map data built-in
     - Maps that show districting information (commercial, industrial, 
     residential, etc) might be useful in teasing out usage patterns
     by user type.
+- **Data has been limited to sources as new or newer than April 2020** to
+  find only current trends.
 
 ## Data Rights
 The data being used is available under 
@@ -47,7 +50,7 @@ view of all the data available to us.
 names(df)  # What variables are in the dataset?
 skimr::skim(df)
 ```
-### Observations
+### Observations & Sanity Checks
 
 - About 10% of the observations are missing the station name and/or ID.  However,
 almost all rides have the latitude/longitude information and we might be able
@@ -55,4 +58,42 @@ to use this to fill in the missing stations.  We'll investigate this in a
 later step.
 - The May dataset includes some rides from June.
 - It's worth noting that the times are recorded down to the second.
+- Cyclistic claims over 600 stations in the network. Dataset reports about 680.
+seems fine.
+
+## Can we infer the station names based on coordinates? 
+
+**Summary: Yes, looks like it.**
+Let's see what the mean latitude & longitude is for each station name. Below,
+it appears at first glance the stations can be clearly identified by their map
+coordinates. Later, we will train a model to predict the station name based
+on the coordinates, and then fill in the matching `station_id`. In the context
+of finding differences between user types, prediction errors like placing a
+trip start at a station a few blocks away should not bias the analysis, and
+would also give us an extra 10% of data to work with.
+```{r infer station name?, echo=FALSE }
+# Show more digits: the pillar package controls how tibbles display sigfigs
+options(pillar.sigfig = 6)  
+df %>% group_by(start_station_name) %>% 
+  summarise(xbar = mean(start_lng), 
+            ybar = mean(start_lat), 
+            sd_x = sd(start_lng), 
+            sd_y = sd(start_lat)) %>% 
+  head(10)
+```
+
+```{r show Aberdeen stations, echo = FALSE}
+df %>% 
+  filter(start_station_name == 'Aberdeen St & Jackson Blvd' | 
+           start_station_name == 'Aberdeen St & Monroe St') %>% 
+  distinct(across(c(start_station_name, start_lat))) %>% 
+  head(10)
+```
+
+
+
+
+
+
+
 
