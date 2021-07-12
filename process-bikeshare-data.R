@@ -24,6 +24,11 @@ df <-
                 stringsAsFactors = TRUE))
 gc()
 df <- df %>%
-  mutate(trip_minutes = difftime(ended_at, started_at, units = "mins"))
+  mutate(trip_minutes = difftime(ended_at, started_at, units = "mins"),
+         weekday = factor(lubridate::wday(started_at, week_start = 1),
+                          levels = 1:7,
+                          labels = c("Monday", "Tuesday", "Wednesday",
+                                     "Thursday", "Friday", "Saturday",
+                                     "Sunday")))
 
 fwrite(x = df, file = "./data/alldata.csv")
