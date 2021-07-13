@@ -22,13 +22,20 @@ df <-
                 colClasses = c(start_station_id = 'character',
                                   end_station_id = 'character'),
                 stringsAsFactors = TRUE))
-gc()
+
+# Problems to fix:
+#  - blank stations
+#  - huge trip times: are these bikes stolen, then recovered?
+#     - filter out any trips longer than 24 hours
 df <- df %>%
-  mutate(trip_minutes = difftime(ended_at, started_at, units = "mins"),
+  mutate(trip_minutes = abs(as.numeric(difftime(ended_at, started_at, units = "mins"))),
          weekday = factor(lubridate::wday(started_at, week_start = 1),
                           levels = 1:7,
                           labels = c("Monday", "Tuesday", "Wednesday",
                                      "Thursday", "Friday", "Saturday",
-                                     "Sunday")))
+                                     "Sunday"))) %>%
+  filter(start_station_name != "" & start_station_id != "" &
+           end_station_name != "" & end_station_id != "" &
+           trip_minutes < 1440)
 
 fwrite(x = df, file = "./data/alldata.csv")

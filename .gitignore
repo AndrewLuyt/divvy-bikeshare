@@ -2,6 +2,8 @@ Case-Study-1_Bike-share.pdf
 data
 tasks.Rmd
 tasks.md
+# ignore graphs until we're finished
+analyze-data_files
 
 # github's R.gitignore #################################
 # History files
