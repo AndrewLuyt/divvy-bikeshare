@@ -11,20 +11,52 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r load data, include=FALSE}
 library(tidyverse)
 library(data.table)
-DATA = "data/alldata.csv"
+library(sf)
+library(here)
+library(viridis)
+
+DATA = here("data/alldata.csv")
 
 df <- fread(
   DATA,
   colClasses = c(start_station_id = 'character',
                  end_station_id = 'character'),
-  stringsAsFactors = TRUE
+  stringsAsFactors = FALSE,
+  showProgress = FALSE
 )
 
+# put the factors in convenient order now, else we'll have to do this
+# every time we make a plot using the weekday.
+# df <- df %>%
+#   mutate(weekday = fct_relevel(
+#     weekday,
+#     c(
+#       "Monday",
+#       "Tuesday",
+#       "Wednesday",
+#       "Thursday",
+#       "Friday",
+#       "Saturday",
+#       "Sunday"
+#     )
+#   ))
+
 ```
+
+## Who rides most often?
+Members take the majority of rides.
+```{r who rides most often, echo=FALSE}
+df %>% ggplot(aes(x = member_casual, fill = member_casual)) +
+  geom_bar()
+```
+
 
 ## How do they differ on type of bike ridden?
 Casuals are more likely to choose a docked bike and less likely to choose a
 classic bike.
+
+**This is confusing**.  The divvy website lists two types of bikes, **classic**
+and **electric bike.** What is a **docked bike**?
 ```{r differ on bike type, echo=FALSE}
 # df %>%
 #   group_by(member_casual, rideable_type) %>%
@@ -37,16 +69,117 @@ df %>%
 
 ```
 
+# How long do they ride?
+Casuals ride more than twice as long as members, on average.
+```{r mean ride length, echo=FALSE}
+#knitr::kable(
+df %>% 
+  group_by(member_casual) %>% 
+  summarise(mean_ride_length = mean(trip_minutes)) %>% 
+  ggplot(aes(member_casual, mean_ride_length, fill = member_casual)) +
+  geom_col() +
+  labs(title = "Average ride length: casuals vs members")
+```
+
+
+## What is the distribution of ride lengths?
+
+A quick examination shows a few notable items:
+
+- Casuals have a higher mean and median trip time. i.e. they tend to take
+longer trips
+- The difference is amplified in the particularly long trips
+  - compare the 95th percentile trip time. 5% of casuals take trips longer
+  than 1:50!
+```{r trip length details, echo=FALSE, message=FALSE}
+df %>% 
+  group_by(member_casual) %>% 
+  select(trip_minutes) %>% 
+  summarise(mean = mean(trip_minutes),
+            median = median(trip_minutes),
+            quantiles = quantile(trip_minutes, c(0.25, 0.75, 0.95)),
+            q = c(0.25, 0.75, 0.95))
+```
+
+From above we see there is a **wide** range of trip lengths, with most being
+short and a small number being over an hour. We will trim off the longest 5% of
+trips so we can see the typical pattern of ride length.
+
+**One observation is that casual riders make up almost all trips longer than 40 
+minutes!**
+
+**TODO: is there some limitation on ride length for members? The cutoff
+around 40 minutes looks quite sudden.**
+
+One question to arise from this: what sort of bike is most comfortable for
+long trips, and which are better for short ones?  Do members tend to choose
+lighter, speedier bikes and do casuals prefer bikes with more comfort?
+```{r trip length histogram}
+df %>% 
+  group_by(member_casual) %>%  # IMPORTANT! Trim the top 5% of EACH GROUP, separately
+  filter(trip_minutes < quantile(trip_minutes, 0.95)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = trip_minutes, fill = member_casual, color = member_casual)) +
+  geom_histogram(bins = 40, alpha = 0.7)
+```
+
+## Ride length, by weekday
+
+We see an unsurprising distribution of trip times over the week: a slight 
+increase over the weekend, with casual riders having showing a larger
+difference.
+```{r tuesday oddity}
+df %>% 
+  group_by(weekday, member_casual) %>% 
+  summarise(mean_ride_length = mean(trip_minutes)) %>% 
+  ggplot(aes(weekday, mean_ride_length, fill=member_casual)) +
+  scale_x_discrete(limits = c("Monday", "Tuesday", "Wednesday", "Thursday",
+                              "Friday", "Saturday", "Sunday")) +
+  geom_col(position = position_dodge(width = 0.4), alpha = 0.8)
+```
+
+## Number of trips by day of the week
+We see here that:
+
+- Member use is fairly steady through the week
+- Casual use increases on Friday and nearly doubles through the weekend.
+
+We can take this as more evidence that members are often commuting,
+whereas casuals are primarily riding for other reasons (enjoyment, exercise?)
+```{r day of week, echo=FALSE}
+df %>%
+  ggplot(aes(weekday, fill = member_casual)) +
+    geom_bar(position = position_dodge(width = 0.5), alpha = 0.8)
+  #facet_wrap(~member_casual) +)
+```
+
 ## Do they differ in *what hour* rides are taken?
 There seems to be a slight tendency for casuals to start their rides later.
 The tendency is similar for ending times (not shown.)
 
-```{r differ by hour, echo=FALSE}
+```{r hour of trip start, echo=FALSE}
 df %>% 
   ggplot(aes(x=member_casual, y=hour(started_at), fill = member_casual)) +
   geom_boxplot() +
   labs(x="", y = "hour of trip start")
 ```
+
+
+## Hour of trip start, in detail
+Lending more weight to the 'members commute more often' hypothesis we see
+two jumps in member activity, both starting around morning and evening
+commute times.  Casual users have a much smoother increase in trips
+as the day goes on. Two possible interpretations are that 
+casuals are using a bike for their commute less often,
+or casual users tend to have non-typical start times for their job.
+```{r hour of trip start detailed, echo=FALSE}
+df %>% ggplot(aes(hour(started_at), fill=member_casual)) +
+  geom_bar(position = position_dodge(width=0.7), alpha = 0.8)
+```
+
+
+
+
 
 ## Are some stations preferred by casuals?
 Dramatically so! Some stations are 100% casual use and others are near-zero!
@@ -59,8 +192,8 @@ df %>%
   mutate(percentage = n / sum(n) * 100) %>% 
   filter(member_casual == "casual") %>% 
   ggplot(aes(percentage)) + 
-  geom_histogram(bins = 30, fill='blue') +
-  labs(title="Percentage of casual users by station",
+  geom_histogram(bins = 30, fill='deepskyblue') +
+  labs(title="Distribution of station use",
        subtitle = "Stations vary from 100% casual to near-zero!",
        x = 'Percentage of casuals',
        y = 'Number of stations')
@@ -74,16 +207,186 @@ df %>%
 #   summarise(median_casual_station_pct = median(percentage))
 ```
 
-## TODO: `cut` stations by trip volume, into deciles
-Examine proportion of user types for each bin.  Are busier stations preferred
-by some user types?
+## Break stations into 10 groups: slowest to busiest
+### TODO: check this entire section, seems iffy
+On the left, the slowest 10% of stations (by number of trips started there)
+are preferred by members. This is important as these unpopular stations are
+used most often by our members whom we desire to keep.
 
-This will probably be much clearer than the histogram.
+```{r station popularity quantiles, echo=FALSE, message=FALSE}
+tmp <- df %>% 
+  group_by(start_station_id, member_casual) %>% 
+  summarise(trips_by_type = n()) %>% 
+  ungroup() %>% 
+  group_by(start_station_id) %>%
+  summarise(n_trips = sum(trips_by_type),
+            trips_by_type = identity(trips_by_type),
+            member_casual = identity(member_casual),
+            proportion = trips_by_type / n_trips) %>% 
+  ungroup() %>% 
+  mutate(decile_popularity = cut(x = n_trips,
+                      breaks = quantile(n_trips, probs = seq(0.05,.95,0.1)),
+                      # labels = c(.1,2,.3,.4,.5,.6,.7,.8,.9,1)
+                      )) 
+
+tmp %>% 
+  group_by(decile_popularity, member_casual) %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes(decile_popularity, n, fill=member_casual)) +
+  geom_col(position='fill') +
+  labs(x = '',
+       y = 'Proportion using these stations')
+
+# unique(tmp$decile)
+```
+
+## Order all stations by popularity, plot the proportion of members using it
+
+We see a clear pattern. As staions get busier, the proportion of casuals rises.
+There is still a large amount of variability however.
+```{r station popularity scatter and fit, echo=FALSE, message=FALSE}
+df %>% 
+  group_by(start_station_id, member_casual) %>% 
+  summarize(n = n()) %>% 
+  mutate(total = sum(n)) %>% 
+  filter(member_casual == 'casual') %>% 
+  mutate(casual_percent = n / total * 100,
+         mostly_casual = casual_percent > 50) %>% 
+  arrange(desc(total)) %>% 
+  ggplot(aes(desc(rank(total)), casual_percent)) +
+  geom_point(aes(color = mostly_casual)) +
+  geom_smooth() +
+  scale_x_continuous(breaks = NULL, name = "(-)     Station Popularity     (+)") +
+  labs(x = 'Popularity of station', y = '% who are casuals',
+       title = 'Percent of riders being casuals, by station popularity',
+       subtitle = "The busier a station, the more often that casuals tend to use them")
+```
 
 
+## Plot stations on the map
+ideas:
 
+- Size of dot varies with station popularity
+- the colour varies with the proportion of users (by trip start) who are casuals. 
+  - First step: mostly_casual to colour the stations with binary scheme
 
+```{r echo=FALSE, message=FALSE}
+# boundaries_chi = st_read(here("data/Chicago_Boundaries-ZIP_Codes.geojson"),
+#                          quiet = TRUE)
+boundaries_chi = st_read(here("data/Chicago_Boundaries-Neighborhoods.geojson"),
+                         quiet = TRUE)
+boundaries_chi <- boundaries_chi %>%
+  select(geometry)
 
+# use random sample for development
+x <- df %>% 
+  select(start_lng, start_lat, start_lng_sector, start_lat_sector, 
+         end_lng, end_lat, end_lng_sector, end_lat_sector, member_casual, trip_minutes)  
+  # slice_sample(n = 30000)
+x2 <- x %>% 
+  group_by(start_lng_sector, start_lat_sector, member_casual) %>% 
+  summarise(avg_trip_mins = mean(trip_minutes), n_trips_sector = n()) %>% 
+  filter(n_trips_sector > 4)  # remove some weird outliers
+
+# use the summary you just calculated
+ggplot(boundaries_chi, aes()) + 
+  geom_sf() +
+  geom_point(data = x2, 
+             mapping = aes(start_lng_sector, start_lat_sector, color= avg_trip_mins),
+             alpha = 1) +
+  scale_color_viridis(option = 'plasma') +
+  facet_wrap(~member_casual) +
+  labs(title = "Length of trips starting here")
+
+x3 <- x %>% 
+  group_by(end_lng_sector, end_lat_sector, member_casual) %>% 
+  summarise(avg_trip_mins = mean(trip_minutes), n_trips_sector = n()) %>% 
+  filter(n_trips_sector > 4)  # remove some weird outliers
+
+# use the summary you just calculated
+ggplot(boundaries_chi, aes()) + 
+  geom_sf() +
+  geom_point(data = x3, 
+             mapping = aes(end_lng_sector, end_lat_sector, color= avg_trip_mins),
+             alpha = 1) +
+  scale_color_viridis(option = 'plasma') +
+  facet_wrap(~member_casual) +
+  labs(title = "Length of trips ending here")
+
+# let the geom (hexbin, 2d density, count) do the aggregation from raw lng/lat
+# boundaries_chi %>% ggplot(aes()) + 
+#   geom_sf() +
+#   geom_count(data = x,
+#             mapping = aes(start_lng, start_lat)) +
+#   # geom_density_2d(data = x, 
+#             # mapping = aes(start_lng, start_lat)) +
+#   scale_color_viridis(option = 'plasma') +
+#   facet_wrap(~member_casual) +
+#   theme(panel.background = element_rect(fill = "white")) +
+#   labs(title="Number of trips started in this area")
+
+boundaries_chi %>% ggplot(aes()) + 
+  geom_sf() +
+  geom_hex(data = x, mapping = aes(start_lng, start_lat)) +
+  # geom_density_2d(data = x, 
+            # mapping = aes(start_lng, start_lat)) +
+  scale_fill_viridis(option = 'plasma') +
+  facet_wrap(~member_casual) +
+  theme(panel.background = element_rect(fill = "white")) +
+  labs(title="Number of trips started in this area")
+
+# TRIP ENDS
+ggplot(boundaries_chi, aes()) + 
+    geom_sf() +
+    geom_hex(data = x,
+            mapping = aes(end_lng, end_lat)) +
+  # geom_density_2d(data = x, 
+            # mapping = aes(start_lng, start_lat)) +
+  scale_fill_viridis(option = 'plasma') +
+  facet_wrap(~member_casual) +
+  theme(panel.background = element_rect(fill = "white")) +
+  labs(title="Number of trips ended in this area")
+
+# TRIP starts and ends in the same station
+pleasure_cruises <- df %>% 
+  filter(start_station_id == end_station_id)
+ggplot(boundaries_chi, aes()) + 
+    geom_sf() +
+    geom_hex(data = pleasure_cruises,
+            mapping = aes(end_lng, end_lat)) +
+  # geom_density_2d(data = x, 
+            # mapping = aes(start_lng, start_lat)) +
+  scale_fill_viridis(option = 'plasma') +
+  facet_wrap(~member_casual) +
+  theme(panel.background = element_rect(fill = "white")) +
+  labs(title="Number of trips started & ended at the same station")
+rm(pleasure_cruises)
+
+# TRIP starts and ends in the same station
+a_to_b <- df %>% 
+  filter(start_station_id != end_station_id)
+ggplot(boundaries_chi, aes()) + 
+    geom_sf() +
+    geom_hex(data = a_to_b,
+            mapping = aes(start_lng, start_lat)) +
+  # geom_density_2d(data = x, 
+            # mapping = aes(start_lng, start_lat)) +
+  scale_fill_viridis(option = 'plasma') +
+  facet_wrap(~member_casual) +
+  theme(panel.background = element_rect(fill = "white")) +
+  labs(title="Number of trips started here & ended elsewhere")
+ggplot(boundaries_chi, aes()) + 
+    geom_sf() +
+    geom_hex(data = a_to_b,
+            mapping = aes(end_lng, end_lat)) +
+  # geom_density_2d(data = x, 
+            # mapping = aes(start_lng, start_lat)) +
+  scale_fill_viridis(option = 'plasma') +
+  facet_wrap(~member_casual) +
+  theme(panel.background = element_rect(fill = "white")) +
+  labs(title="Number of trips started elsewhere & ended here")
+rm(a_to_b)
+```
 
 
 
