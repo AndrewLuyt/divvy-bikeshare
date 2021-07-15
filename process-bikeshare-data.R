@@ -21,19 +21,31 @@ df <-
                 select= (2:13),
                 colClasses = c(start_station_id = 'character',
                                   end_station_id = 'character'),
-                stringsAsFactors = TRUE))
+                stringsAsFactors = FALSE))
 
-# Problems to fix:
+# Problems fixed by dropping rows:
 #  - blank stations
 #  - huge trip times: are these bikes stolen, then recovered?
 #     - filter out any trips longer than 24 hours
+# New variables added:
+#  - weekday (1-7, starts Monday)
+#  - sector: rectangular area on map. Created by rounding lng/lat to
+#    two decimal points.
+#    - meant as an aggregating measure. Incidents could be, e.g.:
+#       - plotted as in countplot() with increasing size of the point
+#       - mapped onto a rectangular grid. This grid would have to be calculated
+#         and some form of sf object created, which could then be coloured, etc.
 df <- df %>%
   mutate(trip_minutes = abs(as.numeric(difftime(ended_at, started_at, units = "mins"))),
          weekday = factor(lubridate::wday(started_at, week_start = 1),
                           levels = 1:7,
                           labels = c("Monday", "Tuesday", "Wednesday",
                                      "Thursday", "Friday", "Saturday",
-                                     "Sunday"))) %>%
+                                     "Sunday")),
+         start_lng_sector = round(start_lng, digits = 2),
+         start_lat_sector = round(start_lat, digits = 2),
+         end_lng_sector = round(end_lng, digits = 2),
+         end_lat_sector = round(end_lat, digits = 2),) %>%
   filter(start_station_name != "" & start_station_id != "" &
            end_station_name != "" & end_station_id != "" &
            trip_minutes < 1440)
