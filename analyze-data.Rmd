@@ -21,25 +21,25 @@ df <- fread(
   DATA,
   colClasses = c(start_station_id = 'character',
                  end_station_id = 'character'),
-  stringsAsFactors = FALSE,
+  stringsAsFactors = TRUE,
   showProgress = FALSE
 )
 
 # put the factors in convenient order now, else we'll have to do this
 # every time we make a plot using the weekday.
-# df <- df %>%
-#   mutate(weekday = fct_relevel(
-#     weekday,
-#     c(
-#       "Monday",
-#       "Tuesday",
-#       "Wednesday",
-#       "Thursday",
-#       "Friday",
-#       "Saturday",
-#       "Sunday"
-#     )
-#   ))
+df <- df %>%
+  mutate(weekday = fct_relevel(
+    weekday,
+    c(
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday"
+    )
+  ))
 
 ```
 
@@ -80,6 +80,16 @@ df %>%
   geom_col() +
   labs(title = "Average ride length: casuals vs members")
 ```
+
+## Members ride more often, casuals ride longer: who rides the most minutes?
+Casuals spend more time using the bicycles.
+```{r echo=FALSE}
+df %>% group_by(member_casual) %>% 
+  summarise(total_minutes = sum(trip_minutes)) %>% 
+  ggplot(aes(member_casual, total_minutes, fill= member_casual)) +
+  geom_col()
+```
+
 
 
 ## What is the distribution of ride lengths?
@@ -133,8 +143,6 @@ df %>%
   group_by(weekday, member_casual) %>% 
   summarise(mean_ride_length = mean(trip_minutes)) %>% 
   ggplot(aes(weekday, mean_ride_length, fill=member_casual)) +
-  scale_x_discrete(limits = c("Monday", "Tuesday", "Wednesday", "Thursday",
-                              "Friday", "Saturday", "Sunday")) +
   geom_col(position = position_dodge(width = 0.4), alpha = 0.8)
 ```
 
@@ -278,23 +286,26 @@ boundaries_chi = st_read(here("data/Chicago_Boundaries-Neighborhoods.geojson"),
 boundaries_chi <- boundaries_chi %>%
   select(geometry)
 
+
 # use random sample for development
 x <- df %>% 
   select(start_lng, start_lat, start_lng_sector, start_lat_sector, 
-         end_lng, end_lat, end_lng_sector, end_lat_sector, member_casual, trip_minutes)  
-  # slice_sample(n = 30000)
+         end_lng, end_lat, end_lng_sector, end_lat_sector, member_casual, 
+         trip_minutes, is_round_trip) #%>% 
+  # slice_sample(n = 1000000)
 x2 <- x %>% 
   group_by(start_lng_sector, start_lat_sector, member_casual) %>% 
   summarise(avg_trip_mins = mean(trip_minutes), n_trips_sector = n()) %>% 
   filter(n_trips_sector > 4)  # remove some weird outliers
 
 # use the summary you just calculated
+# for a heatmap use bin2d and the identity stat -----------------------------
 ggplot(boundaries_chi, aes()) + 
   geom_sf() +
-  geom_point(data = x2, 
-             mapping = aes(start_lng_sector, start_lat_sector, color= avg_trip_mins),
+  geom_bin2d(data = x2, stat = 'identity',
+             mapping = aes(start_lng_sector, start_lat_sector, fill= avg_trip_mins),
              alpha = 1) +
-  scale_color_viridis(option = 'plasma') +
+  scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   labs(title = "Length of trips starting here")
 
@@ -303,33 +314,21 @@ x3 <- x %>%
   summarise(avg_trip_mins = mean(trip_minutes), n_trips_sector = n()) %>% 
   filter(n_trips_sector > 4)  # remove some weird outliers
 
-# use the summary you just calculated
+# heatmap: use bin2d and the identity stat -----------------------------
 ggplot(boundaries_chi, aes()) + 
   geom_sf() +
-  geom_point(data = x3, 
-             mapping = aes(end_lng_sector, end_lat_sector, color= avg_trip_mins),
+  geom_bin2d(data = x3, stat = 'identity',
+             mapping = aes(end_lng_sector, end_lat_sector, fill= avg_trip_mins),
              alpha = 1) +
-  scale_color_viridis(option = 'plasma') +
+  scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   labs(title = "Length of trips ending here")
 
-# let the geom (hexbin, 2d density, count) do the aggregation from raw lng/lat
-# boundaries_chi %>% ggplot(aes()) + 
-#   geom_sf() +
-#   geom_count(data = x,
-#             mapping = aes(start_lng, start_lat)) +
-#   # geom_density_2d(data = x, 
-#             # mapping = aes(start_lng, start_lat)) +
-#   scale_color_viridis(option = 'plasma') +
-#   facet_wrap(~member_casual) +
-#   theme(panel.background = element_rect(fill = "white")) +
-#   labs(title="Number of trips started in this area")
 
+# let the geom (hexbin, 2d density, count) do the aggregation from raw lng/lat
 boundaries_chi %>% ggplot(aes()) + 
   geom_sf() +
-  geom_hex(data = x, mapping = aes(start_lng, start_lat)) +
-  # geom_density_2d(data = x, 
-            # mapping = aes(start_lng, start_lat)) +
+  geom_bin2d(data = x, mapping = aes(start_lng, start_lat)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   theme(panel.background = element_rect(fill = "white")) +
@@ -338,59 +337,154 @@ boundaries_chi %>% ggplot(aes()) +
 # TRIP ENDS
 ggplot(boundaries_chi, aes()) + 
     geom_sf() +
-    geom_hex(data = x,
+    geom_bin2d(data = x,
             mapping = aes(end_lng, end_lat)) +
-  # geom_density_2d(data = x, 
-            # mapping = aes(start_lng, start_lat)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   theme(panel.background = element_rect(fill = "white")) +
   labs(title="Number of trips ended in this area")
 
 # TRIP starts and ends in the same station
+# see how there is a huge spike of round tripping casuals right in that one area
 pleasure_cruises <- df %>% 
-  filter(start_station_id == end_station_id)
+  filter(is_round_trip == 'round trip')
 ggplot(boundaries_chi, aes()) + 
-    geom_sf() +
-    geom_hex(data = pleasure_cruises,
-            mapping = aes(end_lng, end_lat)) +
-  # geom_density_2d(data = x, 
-            # mapping = aes(start_lng, start_lat)) +
+  geom_sf() +
+  # geom_hex(data = pleasure_cruises,
+  #           mapping = aes(end_lng, end_lat)) +
+  geom_bin2d(data = pleasure_cruises,
+             mapping = aes(end_lng, end_lat)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   theme(panel.background = element_rect(fill = "white")) +
   labs(title="Number of trips started & ended at the same station")
 rm(pleasure_cruises)
 
-# TRIP starts and ends in the same station
+# TRIP starts and ends in different places: map start point
 a_to_b <- df %>% 
-  filter(start_station_id != end_station_id)
+  filter(is_round_trip == 'a to b')
 ggplot(boundaries_chi, aes()) + 
-    geom_sf() +
-    geom_hex(data = a_to_b,
-            mapping = aes(start_lng, start_lat)) +
-  # geom_density_2d(data = x, 
-            # mapping = aes(start_lng, start_lat)) +
+  geom_sf() +
+  # geom_hex(data = a_to_b,
+  #          mapping = aes(start_lng, start_lat)) +
+  geom_bin2d(data = a_to_b,
+           mapping = aes(start_lng, start_lat)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   theme(panel.background = element_rect(fill = "white")) +
   labs(title="Number of trips started here & ended elsewhere")
+# TRIP starts and ends in different places: map END point
 ggplot(boundaries_chi, aes()) + 
-    geom_sf() +
-    geom_hex(data = a_to_b,
-            mapping = aes(end_lng, end_lat)) +
-  # geom_density_2d(data = x, 
-            # mapping = aes(start_lng, start_lat)) +
+  geom_sf() +
+  # geom_hex(data = a_to_b,
+  #          mapping = aes(end_lng, end_lat)) +
+  geom_bin2d(data = a_to_b,
+           mapping = aes(end_lng, end_lat)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   theme(panel.background = element_rect(fill = "white")) +
   labs(title="Number of trips started elsewhere & ended here")
 rm(a_to_b)
+
+# Facet on membership & is_round_trip
+# 42 & 25 are the # of rectangular sectors
+ggplot(boundaries_chi, aes()) + 
+    # geom_sf() +
+    geom_bin2d(data = x,
+            mapping = aes(start_lng, start_lat)) +
+  scale_fill_viridis(option = 'plasma') +
+  facet_wrap(~member_casual + is_round_trip, scales = 'free', ) +
+  theme(panel.background = element_rect(fill = "white"), aspect.ratio = 42/25) +
+  labs(title="Number of trips started here & ended elsewhere")
+ggplot(boundaries_chi, aes()) + 
+    # geom_sf() +
+    geom_bin2d(data = x,
+            mapping = aes(end_lng, end_lat)) +
+  scale_fill_viridis(option = 'plasma') +
+  facet_wrap(~member_casual + is_round_trip, scales = 'free', ) +
+  theme(panel.background = element_rect(fill = "white"), aspect.ratio = 42/25) +
+  labs(title="Number of trips started elsewhere & ended here")
+
+# make a station density map
+stations <- df %>% 
+  group_by(start_station_id, member_casual) %>% 
+  summarise(station_lng = mean(start_lng), 
+            station_lat = mean(start_lat),
+            n_trips = n(),
+            mean_duration = mean(trip_minutes),
+            log_mean_duration  = log2(mean_duration)) %>% 
+  filter(n_trips > 10)  # remove stations w/o enough data
+stations_sectored <- df %>% 
+  group_by(start_lng_sector, start_lat_sector, member_casual) %>% 
+  summarise(n_trips = n(),
+            mean_duration = mean(trip_minutes),
+            log_mean_duration = log2(mean_duration)) %>% 
+  filter(n_trips > 10)
+stations_sectored_end <- df %>% 
+  group_by(end_lng_sector, end_lat_sector, member_casual) %>% 
+  summarise(n_trips = n(),
+            mean_duration = mean(trip_minutes),
+            log_mean_duration = log2(mean_duration)) %>% 
+  filter(n_trips > 10)
+
+ggplot(boundaries_chi, aes()) +
+  geom_sf() +
+  geom_bin2d(data = stations,
+             mapping = aes(station_lng, station_lat)) +
+  scale_fill_viridis(option= 'plasma') +
+  labs(title = 'Station density')
+
+# trip durations map -------------
+# individual stations - 'scatterplot'
+ggplot(boundaries_chi, aes()) +
+  geom_sf() +
+  geom_point(data = stations,
+             mapping = aes(station_lng, station_lat, color = mean_duration)) +
+  scale_color_viridis(option= 'plasma') +
+  labs(title = 'Mean duration of trips started here')
+# stations binned into sectors
+ggplot(boundaries_chi, aes()) +
+  geom_sf() +
+  geom_bin2d(data = stations_sectored, stat = 'identity',
+             mapping = aes(start_lng_sector, start_lat_sector, fill = mean_duration)) +
+  scale_fill_viridis(option= 'plasma') +
+  labs(title = 'Mean duration of trips started here')
+# stations binned into sectors & mean_duration log-transformed
+ggplot(boundaries_chi, aes()) +
+  geom_sf() +
+  geom_bin2d(data = stations_sectored, stat = 'identity',
+             mapping = aes(start_lng_sector, start_lat_sector, fill = log_mean_duration)) +
+  scale_fill_viridis(option= 'plasma') +
+  labs(title = 'Mean duration of trips started here (log-transformed duration)')
+# stations binned into sectors & mean_duration log-transformed - by ENDING station
+ggplot(boundaries_chi, aes()) +
+  geom_sf() +
+  geom_bin2d(data = stations_sectored_end, stat = 'identity',
+             mapping = aes(end_lng_sector, 
+                           end_lat_sector, 
+                           fill = log_mean_duration)) +
+  scale_fill_viridis(option= 'plasma') +
+  labs(title = 'Mean duration of trips ended here (log-transformed duration)')
+
 ```
 
 
+## TODO
 
-
+- Calculate mean straight-line **distance** of trips started and ended in each
+sector.
+- visualize timelapse behaviour
+  - trips starting from a sector, with scrubbable hour (tableau!)
+    - or as an animation
+  - and similarly, ending at a sector..
+  - Can you draw a map of LINES connecting start and end points for
+    trips..?
+    - or similarly, for e.g. 4-4:59pm, a cloud of dots in two colours,
+      trips started and trips ended, at every location.
+- a map of all stations, coloured by the proportion of casual users who
+  start/end trips at this station.
+  - size the dots based on the popularity of the station (# of trips
+  starting/ending there)
 
 
 

@@ -21,6 +21,11 @@ choose a classic bike.
 Casuals ride more than twice as long as members, on average.
 ![](analyze-data_files/figure-gfm/mean%20ride%20length-1.png)<!-- -->
 
+## Members ride more often, casuals ride longer: who rides the most minutes?
+
+Casuals spend more time using the bicycles.
+![](analyze-data_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+
 ## What is the distribution of ride lengths?
 
 A quick examination shows a few notable items:
@@ -36,7 +41,7 @@ A quick examination shows a few notable items:
     ## # A tibble: 6 x 5
     ## # Groups:   member_casual [2]
     ##   member_casual  mean median quantiles     q
-    ##   <chr>         <dbl>  <dbl>     <dbl> <dbl>
+    ##   <fct>         <dbl>  <dbl>     <dbl> <dbl>
     ## 1 casual         36.0   21.1     11.5   0.25
     ## 2 casual         36.0   21.1     39.8   0.75
     ## 3 casual         36.0   21.1    110.    0.95
@@ -81,8 +86,6 @@ df %>%
   group_by(weekday, member_casual) %>% 
   summarise(mean_ride_length = mean(trip_minutes)) %>% 
   ggplot(aes(weekday, mean_ride_length, fill=member_casual)) +
-  scale_x_discrete(limits = c("Monday", "Tuesday", "Wednesday", "Thursday",
-                              "Friday", "Saturday", "Sunday")) +
   geom_col(position = position_dodge(width = 0.4), alpha = 0.8)
 ```
 
@@ -153,10 +156,21 @@ ideas:
     -   First step: mostly\_casual to colour the stations with binary
         scheme
 
-![](analyze-data_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-1-2.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-1-3.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-1-4.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-1-5.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-1-6.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-1-7.png)<!-- -->
+![](analyze-data_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-3.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-4.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-5.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-6.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-7.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-8.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-9.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-10.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-11.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-12.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-13.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-14.png)<!-- -->
 
-## TODO: trips whose start & end stations are different vs same
+## TODO
 
-These might represent ‘commutes’ (point A to B and that’s the end of the
-trip) vs ‘pleasure trips’ (start trip, go somewhere, come back to start
-point)
+-   Calculate mean straight-line **distance** of trips started and ended
+    in each sector.
+-   visualize timelapse behaviour
+    -   trips starting from a sector, with scrubbable hour (tableau!)
+        -   or as an animation
+    -   and similarly, ending at a sector..
+    -   Can you draw a map of LINES connecting start and end points for
+        trips..?
+        -   or similarly, for e.g. 4-4:59pm, a cloud of dots in two
+            colours, trips started and trips ended, at every location.
+-   a map of all stations, coloured by the proportion of casual users
+    who start/end trips at this station.
+    -   size the dots based on the popularity of the station (\# of
+        trips starting/ending there)
