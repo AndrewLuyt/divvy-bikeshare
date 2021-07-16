@@ -46,6 +46,8 @@ df <- df %>%
          start_lat_sector = round(start_lat, digits = 2),
          end_lng_sector = round(end_lng, digits = 2),
          end_lat_sector = round(end_lat, digits = 2),
+         trip_delta_x = end_lng - start_lng,
+         trip_delta_y = end_lat - start_lat,
          is_round_trip = if_else(start_station_id == end_station_id, 'round trip', 'a to b')) %>%
   filter(start_station_name != "" & start_station_id != "" &
            end_station_name != "" & end_station_id != "" &
