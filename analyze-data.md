@@ -42,12 +42,12 @@ A quick examination shows a few notable items:
     ## # Groups:   member_casual [2]
     ##   member_casual  mean median quantiles     q
     ##   <fct>         <dbl>  <dbl>     <dbl> <dbl>
-    ## 1 casual         36.0   21.1     11.5   0.25
-    ## 2 casual         36.0   21.1     39.8   0.75
-    ## 3 casual         36.0   21.1    110.    0.95
-    ## 4 member         15.3   11.4      6.48  0.25
-    ## 5 member         15.3   11.4     19.8   0.75
-    ## 6 member         15.3   11.4     37.9   0.95
+    ## 1 casual         35.2   20.6     11.3   0.25
+    ## 2 casual         35.2   20.6     38.7   0.75
+    ## 3 casual         35.2   20.6    108.    0.95
+    ## 4 member         15.1   11.3      6.45  0.25
+    ## 5 member         15.1   11.3     19.6   0.75
+    ## 6 member         15.1   11.3     37.6   0.95
 
 From above we see there is a **wide** range of trip lengths, with most
 being short and a small number being over an hour. We will trim off the
@@ -106,6 +106,45 @@ whereas casuals are primarily riding for other reasons (enjoyment,
 exercise?)
 ![](analyze-data_files/figure-gfm/day%20of%20week-1.png)<!-- -->
 
+## Trips volume trend over the last year
+
+-   There is an enormous seasonal variation, from a low of 15 rides to a
+    high of almost 20,000 in one day.
+-   The trend in 2021 is for higher volume than 2020
+-   Casual membership seems to be rising more sharply in 2021
+
+``` r
+df %>% 
+  group_by(date(started_at), member_casual) %>% 
+  summarise(n_rides = n()) %>% 
+  rename(date = 1) %>% 
+  ggplot(aes(x = date, y = n_rides, color = member_casual)) +
+  geom_point() +
+  geom_smooth() + 
+  labs(title = "Daily trip volume, 2020-2021", x = 'Date', y = "Rides")
+```
+
+![](analyze-data_files/figure-gfm/daily%20trips-1.png)<!-- -->
+
+## Do weekends matter?
+
+Yes, but only for casuals and not in winter.
+
+``` r
+df %>% 
+  mutate(is_weekend = as_factor(weekday %in% c('Saturday', 'Sunday'))) %>% 
+  group_by(date(started_at), member_casual, is_weekend) %>% 
+  summarise(n_rides = n()) %>% 
+  rename(date = 1) %>% 
+  ggplot(aes(x = date, y = n_rides, color = is_weekend)) +
+  geom_point(alpha=0.5) +
+  geom_smooth(se = FALSE, size = 2) + 
+  facet_wrap(~member_casual) +
+  labs(title = "Do Weekends Matter?", subtitle = "Daily trip volume, 2020-2021", x = 'Date', y = "Rides")
+```
+
+![](analyze-data_files/figure-gfm/do%20weekends%20matter-1.png)<!-- -->
+
 ## Do they differ in *what hour* rides are taken?
 
 There seems to be a slight tendency for casuals to start their rides
@@ -158,10 +197,185 @@ ideas:
 
 ![](analyze-data_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-3.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-4.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-5.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-6.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-7.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-8.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-9.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-10.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-11.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-12.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-13.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-14.png)<!-- -->
 
+## Average rider motion by hour
+
+Here we’ll examine the overall traffic flow: as the hours go by, do
+riders tend to ride in a particular direction? (yes) We expected this
+because the morning and evening commute times are not of equal
+magnitude. Overall it seems like there is a daily tendency for riders
+(and bicycles) to move northwest.
+
+### TODO: make interpretable with distance
+
+This has connections with how Divvy may have to shuttle bikes around at
+night to ensure the busy stations have bikes
+
+-   the average rider (and bike!) moves Xm west by northwest
+-   overall, traffic moves Xm west by northwest
+
+``` r
+angle_from_x_axis <- function(y,x) {
+  angle <- atan(y/x)
+  if (x<0) {
+    angle <- angle + pi
+  } else if (x>=0 & y<0) {
+    angle <- angle + 2*pi
+  } 
+  angle * 180 / pi
+}
+overall_vec <- df %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x),
+            atan = atan(y/x))
+monthly_vec <- df %>% 
+  group_by(month = month(started_at),
+           hour = lubridate::hour(started_at)) %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x),
+            atan = atan(y/x))
+```
+
+    ## `summarise()` has grouped output by 'month'. You can override using the `.groups` argument.
+
+``` r
+dow_vec <- df %>% 
+  group_by(weekday,
+           hour = lubridate::hour(started_at)) %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x),
+            atan = atan(y/x))
+```
+
+    ## `summarise()` has grouped output by 'weekday'. You can override using the `.groups` argument.
+
+``` r
+vecs <- df %>% 
+  group_by(hour = lubridate::hour(started_at)) %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x)) 
+```
+
+## Overall traffic flow by hour
+
+We compute an estimate of the overall flow of traffic (direction and
+distance) for every trip taken each hour. (\*Technical note: This is
+done by adding the vectors of every trip up to compute the ‘overall
+trip’ during that hour)
+
+``` r
+ggplot(vecs, aes(x=0, y=0, xend=x, yend=y)) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  facet_wrap(~hour) +
+  theme_gray() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  geom_segment(arrow = arrow(length = unit(0.1, "npc")), color='blue') +
+  labs(title = "Overall traffic direction and strength, by hour")
+```
+
+![](analyze-data_files/figure-gfm/traffic%20flow%20by%20hour-1.png)<!-- -->
+
+## Traffic flow by hour and weekday
+
+``` r
+ggplot(dow_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(weekday))) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  theme_gray() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
+  facet_wrap(~hour) +
+  labs(title = "Overall traffic direction and strength, by hour",
+       subtitle = "Colours denote weekday",
+       caption = "Note the variation on different days between 4-6pm")
+```
+
+![](analyze-data_files/figure-gfm/Traffic%20flow%20by%20hour%20and%20weekday-1.png)<!-- -->
+
+## Examining the evening rush hour traffic
+
+The rush hour traffic flow has two main patterns.
+
+-   On **Monday to Thursday** rush hour traffic trends strongly to the
+    northwest.
+-   On **weekends** the rush hour traffic trends west to southwest
+
+``` r
+dow_vec %>%
+  filter(between(hour, 16, 18)) %>%
+  ggplot(aes(
+    x = 0,
+    y = 0,
+    xend = x,
+    yend = y,
+    color = as_factor(weekday)
+  )) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  theme_gray() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    axis.ticks = element_blank(),
+    panel.background = element_blank()
+  ) +
+  geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
+  facet_wrap( ~ hour) +
+  labs(title = "Rush hour traffic direction and strength",
+       subtitle = "Evening rush hour: 4 - 6pm",
+       caption = "Weekends have their own distinct pattern")
+```
+
+![](analyze-data_files/figure-gfm/Traffic%20flow%20by%20hour%20and%20weekday%20limited%20to%20rush%20hour-1.png)<!-- -->
+
+## Hourly traffic flow, with monthly patterns
+
+``` r
+ggplot(monthly_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(month))) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  theme_gray() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
+  facet_wrap(~hour) +
+  labs(title = "Overall traffic direction and strength, by hour",
+       subtitle = "Colours denote months",
+       caption = "Little variation by month: the main effect is the hour")
+```
+
+![](analyze-data_files/figure-gfm/traffic%20flow%20by%20hour%20and%20month-1.png)<!-- -->
+
 ## TODO
 
--   Calculate mean straight-line **distance** of trips started and ended
-    in each sector.
+-   ADD FEATURE: Calculate mean straight-line **distance** of trips
+    started and ended in each sector.
+    -   is it better to do straight line, or horizontal + vert distances
+        (“manhattan distance”) and add them?
 -   visualize timelapse behaviour
     -   trips starting from a sector, with scrubbable hour (tableau!)
         -   or as an animation
@@ -174,3 +388,18 @@ ideas:
     who start/end trips at this station.
     -   size the dots based on the popularity of the station (\# of
         trips starting/ending there)
+-   find the fastest rides:
+    -   use trip time and straight-line distance
+-   is there a ‘mean travel direction’?
+    -   like, morning tends to go north, 5pm it switches?
+    -   calculate by the hour and draw an arrow with direction and
+        strength?
+        -   seems like vectors would work… and we have all the
+            components!
+            -   start\_lng, start\_lat, end\_lng, end\_lat
+            -   this is a vector with angle arctan(delta\_y/delta\_x)
+                (Quadrant!) and magnitude sqrt(delta\_x^2 + delta\_y^2)
+            -   BETTER: just add up all the delta\_x and delta\_y
+                componenets of every trip in that hour and you end up
+                with a vector pointing to the overall (sum of) trip
+                direction and distance.

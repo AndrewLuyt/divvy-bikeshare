@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r load data, include=FALSE}
 library(tidyverse)
+library(lubridate)
 library(data.table)
 library(sf)
 library(here)
@@ -161,6 +162,40 @@ df %>%
   #facet_wrap(~member_casual) +)
 ```
 
+## Trips volume trend over the last year
+
+- There is an enormous seasonal variation, from a low of 15 rides to a high of
+almost 20,000 in one day.
+- The trend in 2021 is for higher volume than 2020
+- Casual membership seems to be rising more sharply in 2021
+```{r daily trips, message=FALSE}
+df %>% 
+  group_by(date(started_at), member_casual) %>% 
+  summarise(n_rides = n()) %>% 
+  rename(date = 1) %>% 
+  ggplot(aes(x = date, y = n_rides, color = member_casual)) +
+  geom_point() +
+  geom_smooth() + 
+  labs(title = "Daily trip volume, 2020-2021", x = 'Date', y = "Rides")
+```
+
+## Do weekends matter?
+Yes, but only for casuals and not in winter.
+
+```{r do weekends matter, message=FALSE}
+df %>% 
+  mutate(is_weekend = as_factor(weekday %in% c('Saturday', 'Sunday'))) %>% 
+  group_by(date(started_at), member_casual, is_weekend) %>% 
+  summarise(n_rides = n()) %>% 
+  rename(date = 1) %>% 
+  ggplot(aes(x = date, y = n_rides, color = is_weekend)) +
+  geom_point(alpha=0.5) +
+  geom_smooth(se = FALSE, size = 2) + 
+  facet_wrap(~member_casual) +
+  labs(title = "Do Weekends Matter?", subtitle = "Daily trip volume, 2020-2021", x = 'Date', y = "Rides")
+```
+
+
 ## Do they differ in *what hour* rides are taken?
 There seems to be a slight tendency for casuals to start their rides later.
 The tendency is similar for ending times (not shown.)
@@ -186,9 +221,6 @@ df %>% ggplot(aes(hour(started_at), fill=member_casual)) +
 ```
 
 
-
-
-
 ## Are some stations preferred by casuals?
 Dramatically so! Some stations are 100% casual use and others are near-zero!
 The median station is 42% casual use.
@@ -205,14 +237,6 @@ df %>%
        subtitle = "Stations vary from 100% casual to near-zero!",
        x = 'Percentage of casuals',
        y = 'Number of stations')
-
-# df %>%
-#   group_by(start_station_id, member_casual) %>%
-#   summarise(n = n(), .groups = 'drop_last') %>%
-#   mutate(percentage = n / sum(n) * 100) %>%
-#   filter(member_casual == "casual") %>%
-#   ungroup() %>%
-#   summarise(median_casual_station_pct = median(percentage))
 ```
 
 ## Break stations into 10 groups: slowest to busiest
@@ -286,14 +310,9 @@ boundaries_chi = st_read(here("data/Chicago_Boundaries-Neighborhoods.geojson"),
 boundaries_chi <- boundaries_chi %>%
   select(geometry)
 
-
-# use random sample for development
-x <- df %>% 
-  select(start_lng, start_lat, start_lng_sector, start_lat_sector, 
-         end_lng, end_lat, end_lng_sector, end_lat_sector, member_casual, 
-         trip_minutes, is_round_trip) #%>% 
-  # slice_sample(n = 1000000)
-x2 <- x %>% 
+  
+x2 <- df %>% 
+  # slice_sample(n = 1000000) %>% 
   group_by(start_lng_sector, start_lat_sector, member_casual) %>% 
   summarise(avg_trip_mins = mean(trip_minutes), n_trips_sector = n()) %>% 
   filter(n_trips_sector > 4)  # remove some weird outliers
@@ -309,7 +328,8 @@ ggplot(boundaries_chi, aes()) +
   facet_wrap(~member_casual) +
   labs(title = "Length of trips starting here")
 
-x3 <- x %>% 
+x3 <- df %>% 
+  # slice_sample(n = 1000000) %>% 
   group_by(end_lng_sector, end_lat_sector, member_casual) %>% 
   summarise(avg_trip_mins = mean(trip_minutes), n_trips_sector = n()) %>% 
   filter(n_trips_sector > 4)  # remove some weird outliers
@@ -328,7 +348,7 @@ ggplot(boundaries_chi, aes()) +
 # let the geom (hexbin, 2d density, count) do the aggregation from raw lng/lat
 boundaries_chi %>% ggplot(aes()) + 
   geom_sf() +
-  geom_bin2d(data = x, mapping = aes(start_lng, start_lat)) +
+  geom_bin2d(data = df, mapping = aes(start_lng, start_lat)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   theme(panel.background = element_rect(fill = "white")) +
@@ -337,7 +357,7 @@ boundaries_chi %>% ggplot(aes()) +
 # TRIP ENDS
 ggplot(boundaries_chi, aes()) + 
     geom_sf() +
-    geom_bin2d(data = x,
+    geom_bin2d(data = df,
             mapping = aes(end_lng, end_lat)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
@@ -372,7 +392,7 @@ ggplot(boundaries_chi, aes()) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   theme(panel.background = element_rect(fill = "white")) +
-  labs(title="Number of trips started here & ended elsewhere")
+  labs(title="Number of trips started here and ending elsewhere")
 # TRIP starts and ends in different places: map END point
 ggplot(boundaries_chi, aes()) + 
   geom_sf() +
@@ -387,23 +407,23 @@ ggplot(boundaries_chi, aes()) +
 rm(a_to_b)
 
 # Facet on membership & is_round_trip
-# 42 & 25 are the # of rectangular sectors
+# 42 & 25 are the number of rectangular sectors
 ggplot(boundaries_chi, aes()) + 
-    # geom_sf() +
-    geom_bin2d(data = x,
-            mapping = aes(start_lng, start_lat)) +
+  # geom_sf() +
+  geom_bin2d(data = df,
+             mapping = aes(start_lng, start_lat)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual + is_round_trip, scales = 'free', ) +
   theme(panel.background = element_rect(fill = "white"), aspect.ratio = 42/25) +
-  labs(title="Number of trips started here & ended elsewhere")
+  labs(title="Number of trips that started here")
 ggplot(boundaries_chi, aes()) + 
-    # geom_sf() +
-    geom_bin2d(data = x,
-            mapping = aes(end_lng, end_lat)) +
+  # geom_sf() +
+  geom_bin2d(data = df,
+             mapping = aes(end_lng, end_lat)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual + is_round_trip, scales = 'free', ) +
   theme(panel.background = element_rect(fill = "white"), aspect.ratio = 42/25) +
-  labs(title="Number of trips started elsewhere & ended here")
+  labs(title="Number of trips that ended here")
 
 # make a station density map
 stations <- df %>% 
@@ -468,11 +488,162 @@ ggplot(boundaries_chi, aes()) +
 
 ```
 
+## Average rider motion by hour
+Here we'll examine the overall traffic flow: as the hours go by, do riders tend
+to ride in a particular direction?  (yes)  We expected this because the
+morning and evening commute times are not of equal magnitude.  Overall it
+seems like there is a daily tendency for riders (and bicycles) to move
+northwest.
+
+### TODO: make interpretable with distance
+This has connections with how Divvy may have to shuttle bikes around at night
+to ensure the busy stations have bikes
+
+- the average rider (and bike!) moves Xm west by northwest
+- overall, traffic moves Xm west by northwest
+
+```{r create motion vectors}
+angle_from_x_axis <- function(y,x) {
+  angle <- atan(y/x)
+  if (x<0) {
+    angle <- angle + pi
+  } else if (x>=0 & y<0) {
+    angle <- angle + 2*pi
+  } 
+  angle * 180 / pi
+}
+overall_vec <- df %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x),
+            atan = atan(y/x))
+monthly_vec <- df %>% 
+  group_by(month = month(started_at),
+           hour = lubridate::hour(started_at)) %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x),
+            atan = atan(y/x))
+dow_vec <- df %>% 
+  group_by(weekday,
+           hour = lubridate::hour(started_at)) %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x),
+            atan = atan(y/x))
+vecs <- df %>% 
+  group_by(hour = lubridate::hour(started_at)) %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x)) 
+```
+
+## Overall traffic flow by hour
+We compute an estimate of the overall flow of traffic (direction and distance) 
+for every trip taken each hour.  (*Technical note: This is done by adding the
+vectors of every trip up to compute the 'overall trip' during that hour)
+
+```{r traffic flow by hour}
+ggplot(vecs, aes(x=0, y=0, xend=x, yend=y)) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  facet_wrap(~hour) +
+  theme_gray() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  geom_segment(arrow = arrow(length = unit(0.1, "npc")), color='blue') +
+  labs(title = "Overall traffic direction and strength, by hour")
+```
+
+## Traffic flow by hour and weekday
+
+```{r Traffic flow by hour and weekday}
+ggplot(dow_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(weekday))) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  theme_gray() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
+  facet_wrap(~hour) +
+  labs(title = "Overall traffic direction and strength, by hour",
+       subtitle = "Colours denote weekday",
+       caption = "Note the variation on different days between 4-6pm")
+```
+
+## Examining the evening rush hour traffic
+The rush hour traffic flow has two main patterns.
+
+- On **Monday to Thursday** rush hour traffic trends strongly to the northwest.
+- On **weekends** the rush hour traffic trends west to southwest
+
+```{r Traffic flow by hour and weekday limited to rush hour}
+dow_vec %>%
+  filter(between(hour, 16, 18)) %>%
+  ggplot(aes(
+    x = 0,
+    y = 0,
+    xend = x,
+    yend = y,
+    color = as_factor(weekday)
+  )) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  theme_gray() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    axis.ticks = element_blank(),
+    panel.background = element_blank()
+  ) +
+  geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
+  facet_wrap( ~ hour) +
+  labs(title = "Rush hour traffic direction and strength",
+       subtitle = "Evening rush hour: 4 - 6pm",
+       caption = "Weekends have their own distinct pattern")
+```
+
+## Hourly traffic flow, with monthly patterns
+
+```{r traffic flow by hour and month}
+ggplot(monthly_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(month))) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  theme_gray() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
+  facet_wrap(~hour) +
+  labs(title = "Overall traffic direction and strength, by hour",
+       subtitle = "Colours denote months",
+       caption = "Little variation by month: the main effect is the hour")
+```
+
 
 ## TODO
 
-- Calculate mean straight-line **distance** of trips started and ended in each
+- ADD FEATURE: Calculate mean straight-line **distance** of trips started and ended in each
 sector.
+  - is it better to do straight line, or horizontal + vert distances
+    ("manhattan distance") and add them?
 - visualize timelapse behaviour
   - trips starting from a sector, with scrubbable hour (tableau!)
     - or as an animation
@@ -485,6 +656,18 @@ sector.
   start/end trips at this station.
   - size the dots based on the popularity of the station (# of trips
   starting/ending there)
+- find the fastest rides:
+  - use trip time and straight-line distance
+- is there a 'mean travel direction'?
+  - like, morning tends to go north, 5pm it switches?
+  - calculate by the hour and draw an arrow with direction and strength?
+    - seems like vectors would work... and we have all the components!
+      - start_lng, start_lat, end_lng, end_lat
+      - this is a vector with angle arctan(delta_y/delta_x) (Quadrant!) and
+        magnitude sqrt(delta_x^2 + delta_y^2)
+      - BETTER: just add up all the delta_x and delta_y componenets of every
+      trip in that hour and you end up with a vector pointing to the
+      overall (sum of) trip direction and distance.
 
 
 
