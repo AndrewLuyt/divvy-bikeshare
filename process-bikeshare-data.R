@@ -4,18 +4,19 @@
 #
 # Read all csv files available (except alldata.csv) into a single
 # dataframe, add a trip_minutes feature, save complete dataset to
-# alldata.csv
+# alldata.csv.gz
 
+library(data.table)  # use fread for speed
+library(R.utils)     # allow fread to read/write .gz
 library(tidyverse)
 library(lubridate)
-library(data.table) # use fread for speed
 
 # We don't need trip_id (it's just a unique ID) and dropping it
 # cuts memory use in half.
 # factors are slower to read but reduce memory consumption
 df <-
   list.files(path = "./data",
-             pattern = "*-divvy-tripdata.csv",
+             pattern = "*-divvy-tripdata.csv.gz",
              full.names = TRUE) %>%
   map_df(~fread(.,
                 select= (2:13),
@@ -53,4 +54,4 @@ df <- df %>%
            end_station_name != "" & end_station_id != "" &
            trip_minutes < 1440)
 
-fwrite(x = df, file = "./data/alldata.csv")
+fwrite(x = df, file = "./data/alldata.csv.gz")
