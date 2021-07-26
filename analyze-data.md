@@ -5,6 +5,7 @@ Andrew Luyt
 ## Who rides most often?
 
 Members take the majority of rides.
+
 ![](analyze-data_files/figure-gfm/who%20rides%20most%20often-1.png)<!-- -->
 
 ## How do they differ on type of bike ridden?
@@ -14,16 +15,21 @@ choose a classic bike.
 
 **This is confusing**. The divvy website lists two types of bikes,
 **classic** and **electric bike.** What is a **docked bike**?
+
 ![](analyze-data_files/figure-gfm/differ%20on%20bike%20type-1.png)<!-- -->
 
 # How long do they ride?
 
 Casuals ride more than twice as long as members, on average.
+
 ![](analyze-data_files/figure-gfm/mean%20ride%20length-1.png)<!-- -->
 
 ## Members ride more often, casuals ride longer: who rides the most minutes?
 
 Casuals spend more time using the bicycles.
+
+    ## Warning: `fun.y` is deprecated. Use `fun` instead.
+
 ![](analyze-data_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
 
 ## What is the distribution of ride lengths?
@@ -70,7 +76,11 @@ df %>%
   filter(trip_minutes < quantile(trip_minutes, 0.95)) %>% 
   ungroup() %>% 
   ggplot(aes(x = trip_minutes, fill = member_casual, color = member_casual)) +
-  geom_histogram(bins = 40, alpha = 0.7)
+  geom_histogram(bins = 40, alpha = 0.7) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "Ride times",
+       x = "Minutes",
+       y = "Count of rides")
 ```
 
 ![](analyze-data_files/figure-gfm/trip%20length%20histogram-1.png)<!-- -->
@@ -86,7 +96,9 @@ df %>%
   group_by(weekday, member_casual) %>% 
   summarise(mean_ride_length = mean(trip_minutes)) %>% 
   ggplot(aes(weekday, mean_ride_length, fill=member_casual)) +
-  geom_col(position = position_dodge(width = 0.4), alpha = 0.8)
+  geom_col(position = position_dodge(width = 0.4), alpha = 0.8) + 
+  labs(title = "Average Ride lengths over the week",
+       x = NULL, y = "Average minutes")
 ```
 
     ## `summarise()` has grouped output by 'weekday'. You can override using the `.groups` argument.
@@ -104,6 +116,7 @@ We see here that:
 We can take this as more evidence that members are often commuting,
 whereas casuals are primarily riding for other reasons (enjoyment,
 exercise?)
+
 ![](analyze-data_files/figure-gfm/day%20of%20week-1.png)<!-- -->
 
 ## Trips volume trend over the last year
@@ -112,43 +125,18 @@ exercise?)
     high of almost 20,000 in one day.
 -   The trend in 2021 is for higher volume than 2020
 -   Casual membership seems to be rising more sharply in 2021
-
-``` r
-df %>% 
-  group_by(date(started_at), member_casual) %>% 
-  summarise(n_rides = n()) %>% 
-  rename(date = 1) %>% 
-  ggplot(aes(x = date, y = n_rides, color = member_casual)) +
-  geom_point() +
-  geom_smooth() + 
-  labs(title = "Daily trip volume, 2020-2021", x = 'Date', y = "Rides")
-```
-
-![](analyze-data_files/figure-gfm/daily%20trips-1.png)<!-- -->
+    ![](analyze-data_files/figure-gfm/daily%20trips-1.png)<!-- -->
 
 ## Do weekends matter?
 
 Yes, but only for casuals and not in winter.
 
-``` r
-df %>% 
-  mutate(is_weekend = as_factor(weekday %in% c('Saturday', 'Sunday'))) %>% 
-  group_by(date(started_at), member_casual, is_weekend) %>% 
-  summarise(n_rides = n()) %>% 
-  rename(date = 1) %>% 
-  ggplot(aes(x = date, y = n_rides, color = is_weekend)) +
-  geom_point(alpha=0.5) +
-  geom_smooth(se = FALSE, size = 2) + 
-  facet_wrap(~member_casual) +
-  labs(title = "Do Weekends Matter?", subtitle = "Daily trip volume, 2020-2021", x = 'Date', y = "Rides")
-```
-
 ![](analyze-data_files/figure-gfm/do%20weekends%20matter-1.png)<!-- -->
 
 ## Do they differ in *what hour* rides are taken?
 
-There seems to be a slight tendency for casuals to start their rides
-later. The tendency is similar for ending times (not shown.)
+Not much. There seems to be a slight tendency for casuals to start their
+rides later. The tendency is similar for ending times (not shown.)
 
 ![](analyze-data_files/figure-gfm/hour%20of%20trip%20start-1.png)<!-- -->
 
@@ -160,6 +148,7 @@ evening commute times. Casual users have a much smoother increase in
 trips as the day goes on. Two possible interpretations are that casuals
 are using a bike for their commute less often, or casual users tend to
 have non-typical start times for their job.
+
 ![](analyze-data_files/figure-gfm/hour%20of%20trip%20start%20detailed-1.png)<!-- -->
 
 ## Are some stations preferred by casuals?
@@ -181,8 +170,9 @@ stations are used most often by our members whom we desire to keep.
 
 ## Order all stations by popularity, plot the proportion of members using it
 
-We see a clear pattern. As staions get busier, the proportion of casuals
-rises. There is still a large amount of variability however.
+We see a clear pattern. As stations get busier, the proportion of
+casuals rises. There is still a large amount of variability however.
+
 ![](analyze-data_files/figure-gfm/station%20popularity%20scatter%20and%20fit-1.png)<!-- -->
 
 ## Plot stations on the map
@@ -195,7 +185,19 @@ ideas:
     -   First step: mostly\_casual to colour the stations with binary
         scheme
 
-![](analyze-data_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-3.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-4.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-5.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-6.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-7.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-8.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-9.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-10.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-11.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-12.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-13.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-14.png)<!-- -->
+<!-- -->
+
+    ## Warning: Ignoring unknown parameters: bins
+
+![](analyze-data_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+
+    ## Warning: Ignoring unknown parameters: bins
+
+![](analyze-data_files/figure-gfm/unnamed-chunk-2-2.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-3.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-4.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-5.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-6.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-7.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-8.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-9.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-10.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-11.png)<!-- -->
+
+    ## Warning: Ignoring unknown parameters: bins
+
+![](analyze-data_files/figure-gfm/unnamed-chunk-2-12.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-13.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-14.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-15.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-16.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-17.png)<!-- -->![](analyze-data_files/figure-gfm/unnamed-chunk-2-18.png)<!-- -->
 
 ## Average rider motion by hour
 
@@ -232,7 +234,7 @@ overall_vec <- df %>%
             angle = angle_from_x_axis(y,x),
             atan = atan(y/x))
 monthly_vec <- df %>% 
-  group_by(month = month(started_at),
+  group_by(month = lubridate::month(started_at),
            hour = lubridate::hour(started_at)) %>% 
   summarize(x = sum(trip_delta_x), 
             y = sum(trip_delta_y),
@@ -282,13 +284,14 @@ trip’ during that hour)
 ggplot(vecs, aes(x=0, y=0, xend=x, yend=y)) +
   geom_hline(yintercept = 0, color = 'gray80') +
   geom_vline(xintercept = 0, color = 'gray80') +
-  facet_wrap(~hour) +
+  facet_wrap(~hour, ncol = 6) +
   theme_gray() +
   theme(axis.text = element_blank(),
         axis.title = element_blank(),
         axis.ticks = element_blank(),
         panel.background = element_blank()) +
   geom_segment(arrow = arrow(length = unit(0.1, "npc")), color='blue') +
+  coord_fixed(ratio = 0.7) +
   labs(title = "Overall traffic direction and strength, by hour")
 ```
 
@@ -306,10 +309,11 @@ ggplot(dow_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(weekday))) +
         axis.ticks = element_blank(),
         panel.background = element_blank()) +
   geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
-  facet_wrap(~hour) +
+  facet_wrap(~hour, ncol = 6) +
   labs(title = "Overall traffic direction and strength, by hour",
        subtitle = "Colours denote weekday",
-       caption = "Note the variation on different days between 4-6pm")
+       caption = "Note the variation on different days between 4-6pm") +
+  scale_color_viridis(discrete = TRUE, option="turbo")
 ```
 
 ![](analyze-data_files/figure-gfm/Traffic%20flow%20by%20hour%20and%20weekday-1.png)<!-- -->
@@ -345,7 +349,8 @@ dow_vec %>%
   facet_wrap( ~ hour) +
   labs(title = "Rush hour traffic direction and strength",
        subtitle = "Evening rush hour: 4 - 6pm",
-       caption = "Weekends have their own distinct pattern")
+       caption = "Weekends have their own distinct pattern") +
+  scale_color_viridis(discrete = TRUE, option = "turbo")
 ```
 
 ![](analyze-data_files/figure-gfm/Traffic%20flow%20by%20hour%20and%20weekday%20limited%20to%20rush%20hour-1.png)<!-- -->
@@ -376,6 +381,8 @@ ggplot(monthly_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(month))) +
     started and ended in each sector.
     -   is it better to do straight line, or horizontal + vert distances
         (“manhattan distance”) and add them?
+-   Bike Motion maps: calculate total “bike miles” moved in a certain
+    direction to make the abstract arrows more concrete.
 -   visualize timelapse behaviour
     -   trips starting from a sector, with scrubbable hour (tableau!)
         -   or as an animation

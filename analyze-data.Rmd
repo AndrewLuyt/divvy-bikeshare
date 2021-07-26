@@ -16,8 +16,9 @@ library(sf)
 library(here)
 library(viridis)
 
-DATA = here("data/alldata.csv")
+x.txt.size = 15  # scale the x axis ticks in many graphs
 
+DATA = here("data/alldata.csv.gz")
 df <- fread(
   DATA,
   colClasses = c(start_station_id = 'character',
@@ -42,13 +43,29 @@ df <- df %>%
     )
   ))
 
+# Chicago neighbourhood boundaries as Simple Features. We only need
+# the geometry for mapping, all the attributes can be discarded.
+boundaries_chi = st_read(here("data/Chicago_Boundaries-Neighborhoods.geojson"),
+                         quiet = TRUE)
+boundaries_chi <- boundaries_chi %>%
+  select(geometry)
 ```
 
 ## Who rides most often?
 Members take the majority of rides.
+
 ```{r who rides most often, echo=FALSE}
 df %>% ggplot(aes(x = member_casual, fill = member_casual)) +
-  geom_bar()
+  geom_bar() +
+  scale_y_continuous(labels = scales::comma) +
+  labs(
+    title = "Total number of rides",
+    subtitle = paste("Since", lubridate::month(min(df$started_at), label = TRUE),
+                     year(min(df$started_at))),
+    x = NULL,
+    y = "Rides"
+  ) +
+  theme(axis.text.x = element_text(size = x.txt.size))
 ```
 
 
@@ -58,6 +75,7 @@ classic bike.
 
 **This is confusing**.  The divvy website lists two types of bikes, **classic**
 and **electric bike.** What is a **docked bike**?
+
 ```{r differ on bike type, echo=FALSE}
 # df %>%
 #   group_by(member_casual, rideable_type) %>%
@@ -65,13 +83,40 @@ and **electric bike.** What is a **docked bike**?
 #   mutate(percentage = n / sum(n) * 100)
 
 df %>%
-  ggplot(aes(member_casual, fill = rideable_type)) +
-  geom_bar(position = "fill")
-
+  ggplot(aes(y = member_casual, fill = rideable_type)) +
+  geom_bar(position = "fill") +
+  scale_x_continuous(labels = scales::comma) +
+  labs(title="What kind of bikes are being chosen?", subtitle="Casuals vs Members",
+       y=NULL, x = 'Proportion')
 ```
 
-# How long do they ride?
+## How do trip distances vary?
+This is a bit surprising - the average trip is about the same distance for
+both classes of users.  For this analysis we've removed trips that start and end 
+at the same station since we have no indication how long the trip was.
+
+```{r}
+df %>% 
+  filter(is_round_trip == 'a to b') %>% 
+  group_by(member_casual) %>% 
+  summarise(mean_trip_distance = mean(trip_distance_m)) %>% 
+  ggplot(aes(member_casual, mean_trip_distance, fill = member_casual)) +
+  geom_col() +
+  labs(title = "Average trip distance (Km)",
+       subtitle = "Casuals vs Members",
+       caption  = 'Distance is straight-line, or "as the crow flies."',
+       x = NULL, y = "Kilometers") +
+  geom_text(aes(label = round(mean_trip_distance / 1000, digits = 1)), 
+            vjust = 2.1,
+            size = 6) +
+  theme(legend.position = "none",
+        axis.text.x = element_text(size = x.txt.size))
+```
+
+
+## How much time is spent on an average ride?
 Casuals ride more than twice as long as members, on average.
+
 ```{r mean ride length, echo=FALSE}
 #knitr::kable(
 df %>% 
@@ -79,21 +124,67 @@ df %>%
   summarise(mean_ride_length = mean(trip_minutes)) %>% 
   ggplot(aes(member_casual, mean_ride_length, fill = member_casual)) +
   geom_col() +
-  labs(title = "Average ride length: casuals vs members")
+  labs(title = "Average ride length (minutes)", 
+       subtitle = "Casuals vs Members",
+       x = NULL, y = "Minutes") +
+  geom_text(aes(label = round(mean_ride_length, digits = 1)), 
+            vjust = 2.1,
+            size = 6) +
+  theme(legend.position = "none",
+        axis.text.x = element_text(size = x.txt.size))
 ```
 
-## Members ride more often, casuals ride longer: who rides the most minutes?
+## Ride speed
+We've seen that casuals and members ride about the same distances, but members
+spend less time on the bikes. The graph below shows that members are about
+30% faster on average.
+
+We've removed trips that start and end at the same station, since their recorded
+trip distance is 0.
+
+```{r}
+df %>% 
+  filter(is_round_trip == 'a to b') %>%
+  mutate(kph = (trip_distance_m / 1000) / (trip_minutes / 60)) %>% 
+  group_by(member_casual) %>% 
+  summarise(mean_kph = mean(kph)) %>% 
+  ggplot(aes(member_casual, mean_kph, fill = member_casual)) +
+  geom_col() +
+  labs(title = "Mean trip speed (Kph)",
+       subtitle = "Members ride about 30% faster",
+       x = NULL, y = "Kilometers per hour") +
+  geom_text(aes(label = round(mean_kph, digits = 1)), 
+            vjust = 2.1,
+            size = 6) +
+  theme(legend.position = "none",
+        axis.text.x = element_text(size = x.txt.size))
+```
+
+
+## Members ride more often, casuals ride longer: who rides the most total minutes?
 Casuals spend more time using the bicycles.
+
 ```{r echo=FALSE}
 df %>% group_by(member_casual) %>% 
   summarise(total_minutes = sum(trip_minutes)) %>% 
   ggplot(aes(member_casual, total_minutes, fill= member_casual)) +
-  geom_col()
+  geom_col() +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "Who is in the saddle the longest?",
+       subtitle=paste("Total minutes since", 
+                      lubridate::month(min(df$started_at), label = TRUE),
+                      year(min(df$started_at))),
+       x = NULL,
+       y = "Total Minutes") +
+  stat_summary(fun.y = sum, 
+               geom="text", 
+               aes(label=scales::comma(total_minutes)), vjust = 2, size=5) +
+  theme(legend.position = "none", 
+        axis.text.x = element_text(size=a.txt.size))
 ```
 
 
-
-## What is the distribution of ride lengths?
+## What is the distribution of ride durations?
 
 A quick examination shows a few notable items:
 
@@ -102,6 +193,7 @@ longer trips
 - The difference is amplified in the particularly long trips
   - compare the 95th percentile trip time. 5% of casuals take trips longer
   than 1:50!
+  
 ```{r trip length details, echo=FALSE, message=FALSE}
 df %>% 
   group_by(member_casual) %>% 
@@ -125,18 +217,26 @@ around 40 minutes looks quite sudden.**
 One question to arise from this: what sort of bike is most comfortable for
 long trips, and which are better for short ones?  Do members tend to choose
 lighter, speedier bikes and do casuals prefer bikes with more comfort?
-```{r trip length histogram}
+
+```{r trip duration histogram}
 df %>% 
   group_by(member_casual) %>%  # IMPORTANT! Trim the top 5% of EACH GROUP, separately
   filter(trip_minutes < quantile(trip_minutes, 0.95)) %>% 
   ungroup() %>% 
   ggplot(aes(x = trip_minutes, fill = member_casual, color = member_casual)) +
-  geom_histogram(bins = 40, alpha = 0.7)
+  geom_histogram(bins = 40, alpha = 0.7) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "Ride durations",
+       x = "Minutes",
+       y = "Count of rides") +
+  annotate(geom = "text", x = 70, y = 200000, label = "Members rarely ride more than 40 minutes") +
+  annotate(geom = "curve", x = 50, y = 170000, xend = 40, yend = 9000, 
+           curvature = 0.1, arrow = arrow(length = unit(.02, "npc")))
 ```
 
-## Ride length, by weekday
+## Ride duration, by weekday
 
-We see an unsurprising distribution of trip times over the week: a slight 
+We see an unsurprising distribution of trip durations over the week: a slight 
 increase over the weekend, with casual riders having showing a larger
 difference.
 ```{r tuesday oddity}
@@ -144,7 +244,10 @@ df %>%
   group_by(weekday, member_casual) %>% 
   summarise(mean_ride_length = mean(trip_minutes)) %>% 
   ggplot(aes(weekday, mean_ride_length, fill=member_casual)) +
-  geom_col(position = position_dodge(width = 0.4), alpha = 0.8)
+  geom_col(position = position_dodge(width = 0.4), alpha = 0.8) + 
+  labs(title = "Average Ride lengths over the week",
+       x = NULL, y = "Average minutes") +
+  theme(legend.position = "right", legend.title = element_blank() )
 ```
 
 ## Number of trips by day of the week
@@ -155,11 +258,15 @@ We see here that:
 
 We can take this as more evidence that members are often commuting,
 whereas casuals are primarily riding for other reasons (enjoyment, exercise?)
+
 ```{r day of week, echo=FALSE}
 df %>%
   ggplot(aes(weekday, fill = member_casual)) +
-    geom_bar(position = position_dodge(width = 0.5), alpha = 0.8)
-  #facet_wrap(~member_casual) +)
+  geom_bar(position = position_dodge(width = 0.5), alpha = 0.8) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "Total Number of rides, by day",
+       x=NULL, y = "Rides") +
+  theme(legend.title = element_blank())
 ```
 
 ## Trips volume trend over the last year
@@ -168,43 +275,51 @@ df %>%
 almost 20,000 in one day.
 - The trend in 2021 is for higher volume than 2020
 - Casual membership seems to be rising more sharply in 2021
-```{r daily trips, message=FALSE}
+```{r daily trips, message=FALSE, echo=FALSE}
 df %>% 
   group_by(date(started_at), member_casual) %>% 
   summarise(n_rides = n()) %>% 
   rename(date = 1) %>% 
   ggplot(aes(x = date, y = n_rides, color = member_casual)) +
-  geom_point() +
-  geom_smooth() + 
-  labs(title = "Daily trip volume, 2020-2021", x = 'Date', y = "Rides")
+  geom_point(alpha = 0.3) +
+  geom_smooth(size=2, se = FALSE) + 
+  labs(title = "Seasonal variation in bike usage",
+       subtitle = "Daily trip volume, 2020-2021", 
+       x = 'Date', y = "Rides") +
+  theme(legend.title = element_blank())
 ```
 
 ## Do weekends matter?
 Yes, but only for casuals and not in winter.
 
-```{r do weekends matter, message=FALSE}
+```{r do weekends matter, message=FALSE, echo=FALSE}
 df %>% 
   mutate(is_weekend = as_factor(weekday %in% c('Saturday', 'Sunday'))) %>% 
   group_by(date(started_at), member_casual, is_weekend) %>% 
   summarise(n_rides = n()) %>% 
   rename(date = 1) %>% 
-  ggplot(aes(x = date, y = n_rides, color = is_weekend)) +
-  geom_point(alpha=0.5) +
-  geom_smooth(se = FALSE, size = 2) + 
+  ggplot(aes(x = date, y = n_rides)) +
+  geom_point(alpha=0.2) +
+  geom_smooth(aes(color = is_weekend), se = FALSE, size = 2) + 
   facet_wrap(~member_casual) +
-  labs(title = "Do Weekends Matter?", subtitle = "Daily trip volume, 2020-2021", x = 'Date', y = "Rides")
+  scale_color_brewer(palette="Set1") +
+  labs(title = "Trip Volume: Weekend vs Weekday", 
+       subtitle = "Weekends are king for casuals", 
+       x = 'Date', y = "Rides",
+       color = "Weekend?") +
+  guides(color = guide_legend(reverse = TRUE))   # reverse legend order, TRUE first
 ```
 
 
 ## Do they differ in *what hour* rides are taken?
-There seems to be a slight tendency for casuals to start their rides later.
+Not much. There seems to be a slight tendency for casuals to start their rides later.
 The tendency is similar for ending times (not shown.)
 
 ```{r hour of trip start, echo=FALSE}
 df %>% 
   ggplot(aes(x=member_casual, y=hour(started_at), fill = member_casual)) +
   geom_boxplot() +
-  labs(x="", y = "hour of trip start")
+  labs(x="", y = "Hour the trip started", title = "When do trips start?")
 ```
 
 
@@ -215,9 +330,17 @@ commute times.  Casual users have a much smoother increase in trips
 as the day goes on. Two possible interpretations are that 
 casuals are using a bike for their commute less often,
 or casual users tend to have non-typical start times for their job.
+
 ```{r hour of trip start detailed, echo=FALSE}
 df %>% ggplot(aes(hour(started_at), fill=member_casual)) +
-  geom_bar(position = position_dodge(width=0.7), alpha = 0.8)
+  geom_bar(position = position_dodge(width=0.7), alpha = 0.8) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "How many rides start in each hour?",
+       x = "Hour", y = NULL) +
+  annotate("text", x = 5, y = 220000, label = "Morning rush hour, members only!") +
+  annotate("curve", x = 1, y = 210000, xend = 5.5, yend = 120000,
+           curvature = 0.1, arrow = arrow(length = unit(0.07, "npc"))) +
+  theme(legend.title = element_blank())
 ```
 
 
@@ -274,8 +397,9 @@ tmp %>%
 
 ## Order all stations by popularity, plot the proportion of members using it
 
-We see a clear pattern. As staions get busier, the proportion of casuals rises.
+We see a clear pattern. As stations get busier, the proportion of casuals rises.
 There is still a large amount of variability however.
+
 ```{r station popularity scatter and fit, echo=FALSE, message=FALSE}
 df %>% 
   group_by(start_station_id, member_casual) %>% 
@@ -302,15 +426,8 @@ ideas:
 - the colour varies with the proportion of users (by trip start) who are casuals. 
   - First step: mostly_casual to colour the stations with binary scheme
 
-```{r echo=FALSE, message=FALSE}
-# boundaries_chi = st_read(here("data/Chicago_Boundaries-ZIP_Codes.geojson"),
-#                          quiet = TRUE)
-boundaries_chi = st_read(here("data/Chicago_Boundaries-Neighborhoods.geojson"),
-                         quiet = TRUE)
-boundaries_chi <- boundaries_chi %>%
-  select(geometry)
+```{r mapping the dataset, echo=FALSE, message=FALSE}
 
-  
 x2 <- df %>% 
   # slice_sample(n = 1000000) %>% 
   group_by(start_lng_sector, start_lat_sector, member_casual) %>% 
@@ -321,7 +438,7 @@ x2 <- df %>%
 # for a heatmap use bin2d and the identity stat -----------------------------
 ggplot(boundaries_chi, aes()) + 
   geom_sf() +
-  geom_bin2d(data = x2, stat = 'identity',
+  geom_bin2d(data = x2, stat = 'identity', bins=c(25,50),
              mapping = aes(start_lng_sector, start_lat_sector, fill= avg_trip_mins),
              alpha = 1) +
   scale_fill_viridis(option = 'plasma') +
@@ -337,7 +454,7 @@ x3 <- df %>%
 # heatmap: use bin2d and the identity stat -----------------------------
 ggplot(boundaries_chi, aes()) + 
   geom_sf() +
-  geom_bin2d(data = x3, stat = 'identity',
+  geom_bin2d(data = x3, stat = 'identity', bins=c(25,50),
              mapping = aes(end_lng_sector, end_lat_sector, fill= avg_trip_mins),
              alpha = 1) +
   scale_fill_viridis(option = 'plasma') +
@@ -348,7 +465,7 @@ ggplot(boundaries_chi, aes()) +
 # let the geom (hexbin, 2d density, count) do the aggregation from raw lng/lat
 boundaries_chi %>% ggplot(aes()) + 
   geom_sf() +
-  geom_bin2d(data = df, mapping = aes(start_lng, start_lat)) +
+  geom_bin2d(data = df, mapping = aes(start_lng, start_lat), bins=c(25,50)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   theme(panel.background = element_rect(fill = "white")) +
@@ -357,8 +474,7 @@ boundaries_chi %>% ggplot(aes()) +
 # TRIP ENDS
 ggplot(boundaries_chi, aes()) + 
     geom_sf() +
-    geom_bin2d(data = df,
-            mapping = aes(end_lng, end_lat)) +
+    geom_bin2d(data = df, mapping = aes(end_lng, end_lat),  bins=c(25,50)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   theme(panel.background = element_rect(fill = "white")) +
@@ -372,8 +488,7 @@ ggplot(boundaries_chi, aes()) +
   geom_sf() +
   # geom_hex(data = pleasure_cruises,
   #           mapping = aes(end_lng, end_lat)) +
-  geom_bin2d(data = pleasure_cruises,
-             mapping = aes(end_lng, end_lat)) +
+  geom_bin2d(data = pleasure_cruises, mapping = aes(end_lng, end_lat), bins=c(25,50)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   theme(panel.background = element_rect(fill = "white")) +
@@ -387,8 +502,7 @@ ggplot(boundaries_chi, aes()) +
   geom_sf() +
   # geom_hex(data = a_to_b,
   #          mapping = aes(start_lng, start_lat)) +
-  geom_bin2d(data = a_to_b,
-           mapping = aes(start_lng, start_lat)) +
+  geom_bin2d(data = a_to_b, mapping = aes(start_lng, start_lat), bins=c(25,50)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   theme(panel.background = element_rect(fill = "white")) +
@@ -398,8 +512,7 @@ ggplot(boundaries_chi, aes()) +
   geom_sf() +
   # geom_hex(data = a_to_b,
   #          mapping = aes(end_lng, end_lat)) +
-  geom_bin2d(data = a_to_b,
-           mapping = aes(end_lng, end_lat)) +
+  geom_bin2d(data = a_to_b, mapping = aes(end_lng, end_lat), bins=c(25,50)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   theme(panel.background = element_rect(fill = "white")) +
@@ -410,16 +523,14 @@ rm(a_to_b)
 # 42 & 25 are the number of rectangular sectors
 ggplot(boundaries_chi, aes()) + 
   # geom_sf() +
-  geom_bin2d(data = df,
-             mapping = aes(start_lng, start_lat)) +
+  geom_bin2d(data = df, mapping = aes(start_lng, start_lat),  bins=c(25,50)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual + is_round_trip, scales = 'free', ) +
   theme(panel.background = element_rect(fill = "white"), aspect.ratio = 42/25) +
   labs(title="Number of trips that started here")
 ggplot(boundaries_chi, aes()) + 
   # geom_sf() +
-  geom_bin2d(data = df,
-             mapping = aes(end_lng, end_lat)) +
+  geom_bin2d(data = df, mapping = aes(end_lng, end_lat), bins=c(25,50)) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual + is_round_trip, scales = 'free', ) +
   theme(panel.background = element_rect(fill = "white"), aspect.ratio = 42/25) +
@@ -449,8 +560,7 @@ stations_sectored_end <- df %>%
 
 ggplot(boundaries_chi, aes()) +
   geom_sf() +
-  geom_bin2d(data = stations,
-             mapping = aes(station_lng, station_lat)) +
+  geom_bin2d(data = stations, mapping = aes(station_lng, station_lat), bins=c(25,50)) +
   scale_fill_viridis(option= 'plasma') +
   labs(title = 'Station density')
 
@@ -465,7 +575,7 @@ ggplot(boundaries_chi, aes()) +
 # stations binned into sectors
 ggplot(boundaries_chi, aes()) +
   geom_sf() +
-  geom_bin2d(data = stations_sectored, stat = 'identity',
+  geom_bin2d(data = stations_sectored, stat = 'identity',  bins=c(25,50),
              mapping = aes(start_lng_sector, start_lat_sector, fill = mean_duration)) +
   scale_fill_viridis(option= 'plasma') +
   labs(title = 'Mean duration of trips started here')
@@ -486,6 +596,58 @@ ggplot(boundaries_chi, aes()) +
   scale_fill_viridis(option= 'plasma') +
   labs(title = 'Mean duration of trips ended here (log-transformed duration)')
 
+# Station density map again, simpler?
+# Does the counts (rides starting in a bin) quite nicely.
+boundaries_chi %>% ggplot() +
+  geom_sf() +
+  geom_bin2d(data = stations, aes(x = station_lng, y = station_lat),
+             bins = c(25,50)) +
+  scale_fill_viridis(option= 'turbo')
+
+# What I'd like to do though is calculate a stat for each CALCULATED BIN.
+# Like, the program bins all the coordinates and I want a mean of
+# mean_duration for all observations in the bin
+boundaries_chi %>% ggplot() +
+  geom_sf() +
+  geom_hex(data = stations, aes(x = station_lng, y = station_lat), bins = c(18,24)) +
+  scale_fill_viridis(option= 'turbo')
+
+# Sorting the data by p_trips_casual controls the order that dots are plotted
+# in the map in the next code block. This is important because of overplotting.
+# When stations are plotted in this order, the last stations to be plotted
+# are on top. 
+# The business task is to increase casual use, and this method ensures we 
+# see the high casual use stations when the map is crowded. 
+stations_users <- stations %>% 
+  group_by(start_station_id) %>%
+  mutate(p_trips_casual = n_trips / sum(n_trips),
+         n_trips_station = sum(n_trips)) %>% 
+  filter(member_casual == "casual") %>% 
+  rename(n_trips_casual = n_trips) %>% 
+  arrange(p_trips_casual)
+  
+boundaries_chi %>% ggplot() +
+  geom_sf() +
+  geom_point(data = stations_users, 
+             mapping = aes(x = station_lng, y = station_lat,
+                           color = p_trips_casual)) +
+  scale_color_viridis(option = "turbo", labels = scales::percent) +
+  labs(title = "Who uses each station?",
+       subtitle = "Casual usage at each station",
+       color = "Casual use\n")
+
+boundaries_chi %>% ggplot() +
+  geom_sf() +
+  geom_point(data = stations_users, 
+             mapping = aes(x = station_lng, y = station_lat,
+                           color = p_trips_casual > .75)) +
+  # scale_color_viridis(option = "jet", discrete = TRUE) +
+  scale_color_discrete(type=c("deepskyblue4", "red")) +
+  # scale_color_brewer(palette = "Set1", direction = -1) +
+  guides(color = guide_legend(reverse = TRUE)) +  # reverse legend order, TRUE first
+  labs(title = "Casual use hot spots",
+       subtitle = "Stations over 75% casual use",
+       color = "Over 75% casual use")
 ```
 
 ## Average rider motion by hour
@@ -521,7 +683,7 @@ overall_vec <- df %>%
             angle = angle_from_x_axis(y,x),
             atan = atan(y/x))
 monthly_vec <- df %>% 
-  group_by(month = month(started_at),
+  group_by(month = lubridate::month(started_at),
            hour = lubridate::hour(started_at)) %>% 
   summarize(x = sum(trip_delta_x), 
             y = sum(trip_delta_y),
@@ -559,13 +721,14 @@ vectors of every trip up to compute the 'overall trip' during that hour)
 ggplot(vecs, aes(x=0, y=0, xend=x, yend=y)) +
   geom_hline(yintercept = 0, color = 'gray80') +
   geom_vline(xintercept = 0, color = 'gray80') +
-  facet_wrap(~hour) +
+  facet_wrap(~hour, ncol = 6) +
   theme_gray() +
   theme(axis.text = element_blank(),
         axis.title = element_blank(),
         axis.ticks = element_blank(),
         panel.background = element_blank()) +
   geom_segment(arrow = arrow(length = unit(0.1, "npc")), color='blue') +
+  coord_fixed(ratio = 0.7) +
   labs(title = "Overall traffic direction and strength, by hour")
 ```
 
@@ -581,10 +744,11 @@ ggplot(dow_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(weekday))) +
         axis.ticks = element_blank(),
         panel.background = element_blank()) +
   geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
-  facet_wrap(~hour) +
+  facet_wrap(~hour, ncol = 6) +
   labs(title = "Overall traffic direction and strength, by hour",
        subtitle = "Colours denote weekday",
-       caption = "Note the variation on different days between 4-6pm")
+       caption = "Note the variation on different days between 4-6pm") +
+  scale_color_viridis(discrete = TRUE, option="turbo")
 ```
 
 ## Examining the evening rush hour traffic
@@ -616,7 +780,8 @@ dow_vec %>%
   facet_wrap( ~ hour) +
   labs(title = "Rush hour traffic direction and strength",
        subtitle = "Evening rush hour: 4 - 6pm",
-       caption = "Weekends have their own distinct pattern")
+       caption = "Weekends have their own distinct pattern") +
+  scale_color_viridis(discrete = TRUE, option = "turbo")
 ```
 
 ## Hourly traffic flow, with monthly patterns
@@ -644,6 +809,8 @@ ggplot(monthly_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(month))) +
 sector.
   - is it better to do straight line, or horizontal + vert distances
     ("manhattan distance") and add them?
+- Bike Motion maps: calculate total "bike miles" moved in a certain direction
+  to make the abstract arrows more concrete.
 - visualize timelapse behaviour
   - trips starting from a sector, with scrubbable hour (tableau!)
     - or as an animation
