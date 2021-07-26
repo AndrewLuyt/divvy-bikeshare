@@ -10,6 +10,7 @@ library(data.table)  # use fread for speed
 library(R.utils)     # allow fread to read/write .gz
 library(tidyverse)
 library(lubridate)
+library(geosphere)   # calculate trip distances without creating sf objects
 
 # We don't need trip_id (it's just a unique ID) and dropping it
 # cuts memory use in half.
@@ -22,7 +23,7 @@ df <-
                 select= (2:13),
                 colClasses = c(start_station_id = 'character',
                                   end_station_id = 'character'),
-                stringsAsFactors = FALSE))
+                stringsAsFactors = TRUE))
 
 # Problems fixed by dropping rows:
 #  - blank stations
@@ -37,21 +38,46 @@ df <-
 #       - mapped onto a rectangular grid. This grid would have to be calculated
 #         and some form of sf object created, which could then be coloured, etc.
 df <- df %>%
-  mutate(trip_minutes = abs(as.numeric(difftime(ended_at, started_at, units = "mins"))),
-         weekday = factor(lubridate::wday(started_at, week_start = 1),
-                          levels = 1:7,
-                          labels = c("Monday", "Tuesday", "Wednesday",
-                                     "Thursday", "Friday", "Saturday",
-                                     "Sunday")),
-         start_lng_sector = round(start_lng, digits = 2),
-         start_lat_sector = round(start_lat, digits = 2),
-         end_lng_sector = round(end_lng, digits = 2),
-         end_lat_sector = round(end_lat, digits = 2),
-         trip_delta_x = end_lng - start_lng,
-         trip_delta_y = end_lat - start_lat,
-         is_round_trip = if_else(start_station_id == end_station_id, 'round trip', 'a to b')) %>%
-  filter(start_station_name != "" & start_station_id != "" &
-           end_station_name != "" & end_station_id != "" &
-           trip_minutes < 1440)
+  mutate(
+    trip_minutes = abs(as.numeric(
+      difftime(ended_at, started_at, units = "mins")
+    )),
+    weekday = factor(
+      lubridate::wday(started_at, week_start = 1),
+      levels = 1:7,
+      labels = c(
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday"
+      )
+    ),
+    start_lng_sector = round(start_lng, digits = 2),
+    start_lat_sector = round(start_lat, digits = 2),
+    end_lng_sector = round(end_lng, digits = 2),
+    end_lat_sector = round(end_lat, digits = 2),
+    trip_delta_x = end_lng - start_lng,
+    trip_delta_y = end_lat - start_lat,
+    is_round_trip = if_else(start_station_id == end_station_id, 'round trip', 'a to b')
+  ) %>%
+  filter(
+    start_station_name != "" & start_station_id != "",
+    end_station_name != "" & end_station_id != "",!is.na(start_lng),!is.na(start_lat),!is.na(end_lng),!is.na(end_lat),
+    trip_minutes < 1440,
+    trip_minutes > 1
+  ) %>%
+  # Create the trip distance feature. geosphere::distm isn't vectorized: do it
+  # rowwise. This is unfortunately slow. distCosine is accurate to about 0.5% as
+  # is the fastest.  This is good enough accuracy and takes ~5min on my laptop.
+  rowwise() %>%
+  mutate(trip_distance_m = distm(
+    # distance is in meters
+    x = c(start_lng, start_lat),
+    y = c(end_lng, end_lat),
+    fun = distCosine
+  )[1, 1])  # returns a 1x1 matrix
 
 fwrite(x = df, file = "./data/alldata.csv.gz")
