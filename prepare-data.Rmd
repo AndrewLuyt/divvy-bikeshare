@@ -1,6 +1,10 @@
 ---
-title: "Prepare Cyclistic Dataset"
-output: github_document
+title: "Prepare to Use the Divvy Dataset"
+author: "Andrew Luyt"
+date: "2021-07-27"
+output: 
+  html_document:
+    keep_md: true
 ---
 
 ## Executive Summary
@@ -8,30 +12,26 @@ output: github_document
 - Do we have the appropriate rights to use this data?
   - ![checkmark](img/checkmark.png) Yes, see "Data Rights", below.
 - Does the data seem complete?
-  - **? Problematic.** 10% of the station names are missing. It might be possible to
-    fill this in using the geographical coordinates which are almost
-    entirely complete.
+  - **? Problematic:** 10% of rides are missing the station names.  We don't
+  know if this is a random selection of rides or represents a pattern relevant
+  to our analysis.
 - Has it been anonymized?
   - ![checkmark](img/checkmark.png) Yes. Only an anonymous `ride_id` identifies
     the ride.
 - Does it appear we can perform the business task with this dataset?
-  - **? Problematic.** It might be difficult to infer *how* or *why* the bikes are being used
-  - We will want to obtain map data for Chicago so we can sensibly interpret
+  - **? Problematic:** It might be difficult to infer *how* or *why* the bikes 
+  are being used with such limited information.
+    - We have obtained map data for Chicago so we can more sensibly interpret
     the location information.
-    - Tableau can help with this visualization
-      - has map data built-in
-    - Maps that show districting information (commercial, industrial, 
-    residential, etc) might be useful in teasing out usage patterns
-    by user type.
 - **Data has been limited to sources as new or newer than April 2020** to
-  find only current trends.
+  analyze only current trends.
 
 ## Data Rights
 The data being used is available under 
 [this licence.](https://www.divvybikes.com/data-license-agreement)
 The agreement allows us the right to independently analyze this dataset. 
 
-## Detailed examination
+## Dataset summary
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -40,12 +40,13 @@ library(lubridate)
 ```
 
 ```{r load data, include=FALSE}
-df <- read_csv("data/202105-divvy-tripdata.csv",
+# Grab the most recent csv
+df <- read_csv("data/202106-divvy-tripdata.csv.gz",
                col_types = cols(member_casual = 'f',
                                 rideable_type = 'f'))
 ```
-Let's examine our raw dataset.  The output is long, but it gives us a high-level
-view of all the data available to us.
+Let's examine the most recent file from the raw dataset. 
+
 ```{r summarize}
 names(df)  # What variables are in the dataset?
 skimr::skim(df)
@@ -56,22 +57,45 @@ skimr::skim(df)
 almost all rides have the latitude/longitude information and we might be able
 to use this to fill in the missing stations.  We'll investigate this in a 
 later step.
-- The May dataset includes some rides from June.
-- It's worth noting that the times are recorded down to the second.
-- Cyclistic claims over 600 stations in the network. Dataset reports about 680.
-seems fine.
+- The June dataset includes some rides from July.  This is a consequence
+of how the files are compiled and released by Divvy, but isn't an issue as
+datetime information is attached to every ride.
+- Times are recorded down to the second. 
+- On their website, Divvy claims their network has over 600 stations. The 
+dataset reports about 690. Seems fine.
 
 ## Can we infer the station names based on coordinates? 
+About 10% of the rides don't have station names, and in a later step will
+be dropped
+from the analysis. If it became necessary to try to impute the names and
+include them in a later analysis, is it possible to infer what the stations
+were, based on the longitude and latitude recorded?
 
-**Summary: Yes, looks like it.**
+**Summary: Yes, looks like it, but we won't because it isn't necessary now.**
+
 Let's see what the mean latitude & longitude is for each station name. Below,
-it appears at first glance the stations can be clearly identified by their map
-coordinates. Later, we will train a model to predict the station name based
-on the coordinates, and then fill in the matching `station_id`. In the context
+we see that it appears a station can be specified to about three decimal
+places of precision.  The standard deviations of the means of the coordinates
+is about five decimal places of precision.
+At first glance the stations can indeed be clearly identified by their map
+coordinates. 
+
+Later, if we wished to pursue this imputation of data, we could do it with a
+few simple methods:
+
+- Calculate the mean longitude and latitude of each station, to three decimal
+points. Then round the coordinates of each ride to three decimal places and
+match them.
+- Train a machine learning model to predict the station name based
+on the coordinates.  As the coordinates are in a rectangular grid, a tree-based
+model (whose decision space is itself a rectangular grid) seems like an 
+appropriate first choice.
+
+In the context
 of finding differences between user types, prediction errors like placing a
-trip start at a station a few blocks away should not bias the analysis, and
+trip start at a station a few blocks away should not bias the analysis much, and
 would also give us an extra 10% of data to work with.
-```{r infer station name?, echo=FALSE }
+```{r infer station name?}
 # Show more digits: the pillar package controls how tibbles display sigfigs
 options(pillar.sigfig = 6)  
 df %>% group_by(start_station_name) %>% 
@@ -82,12 +106,12 @@ df %>% group_by(start_station_name) %>%
   head(10)
 ```
 
-```{r show Aberdeen stations, echo = FALSE}
+```{r show Aberdeen stations}
 df %>% 
   filter(start_station_name == 'Aberdeen St & Jackson Blvd' | 
-           start_station_name == 'Aberdeen St & Monroe St') %>% 
+         start_station_name == 'Aberdeen St & Monroe St') %>% 
   distinct(across(c(start_station_name, start_lat))) %>% 
-  head(10)
+  slice_sample(n = 10)
 ```
 
 
