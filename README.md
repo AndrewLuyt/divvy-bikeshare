@@ -1,18 +1,25 @@
-Cyclistic Case Study
+Divvy Case Study
 ================
 Andrew Luyt
+July 27, 2021
+
+-   [Background](#background)
+-   [Business Task](#business-task)
+-   [Stakeholders](#stakeholders)
+-   [Deliverables](#deliverables)
+-   [Data source](#data-source)
+-   [Data checklist](#data-checklist)
 
 ## Background
 
-**Cyclistic is a fictional company** that runs a bike-sharing business
-in Chicago. The dataset however is real-world, from Motivate
-International Inc. which operates the City of Chicago’s **Divvy**
+**Divvy** is a bike-sharing service in Chicago. The dataset is
+real-world, supplied by Motivate International Inc. which operates the
 bicycle sharing service. The data has been made available under [this
-licence.](https://www.divvybikes.com/data-license-agreement) For the
-purposes of this analysis, as part of Google’s Data Analytics
-Certificate capstone project, we shall pretend this data is from the
-fictional company **Cyclistic**. No claims will be made about Motivate
-International Inc. or Divvy.
+licence.](https://www.divvybikes.com/data-license-agreement)
+
+This analysis is a capstone project to [Google’s Data Analytics
+Certificate](https://www.coursera.org/professional-certificates/google-data-analytics).
+I don’t represent Motivate International Inc. or Divvy.
 
 ## Business Task
 
@@ -24,7 +31,7 @@ riders into members**.
 ## Stakeholders
 
 -   The Director of Marketing, in charge of designing the campaign
--   The Cyclistic executive team who will approve or deny the marketing
+-   The Divvy executive team who will approve or deny the marketing
     campaign
 
 ## Deliverables
@@ -52,9 +59,6 @@ Produce a report with the following deliverables:
     might be difficult to infer how the bikes are being used.
 -   ![](img/checkmark.png) Current: The newest data is approximately one
     month old, and extends back to 2013.
+    -   Some of this information may be too old to be relevant. **We
+        will limit to data no older than April 2020.**
 -   ![](img/checkmark.png) Cited: Yes
-
-## NB
-
-Data sources extend back to 2013. These data may be too old to be
-relevant. We will limit to data no older than April 2020.
