@@ -180,7 +180,7 @@ df %>% group_by(member_casual) %>%
                geom="text", 
                aes(label=scales::comma(total_minutes)), vjust = 2, size=5) +
   theme(legend.position = "none", 
-        axis.text.x = element_text(size=a.txt.size))
+        axis.text.x = element_text(size=x.txt.size))
 ```
 
 
@@ -360,39 +360,6 @@ df %>%
        subtitle = "Stations vary from 100% casual to near-zero!",
        x = 'Percentage of casuals',
        y = 'Number of stations')
-```
-
-## Break stations into 10 groups: slowest to busiest
-### TODO: check this entire section, seems iffy
-On the left, the slowest 10% of stations (by number of trips started there)
-are preferred by members. This is important as these unpopular stations are
-used most often by our members whom we desire to keep.
-
-```{r station popularity quantiles, echo=FALSE, message=FALSE}
-tmp <- df %>% 
-  group_by(start_station_id, member_casual) %>% 
-  summarise(trips_by_type = n()) %>% 
-  ungroup() %>% 
-  group_by(start_station_id) %>%
-  summarise(n_trips = sum(trips_by_type),
-            trips_by_type = identity(trips_by_type),
-            member_casual = identity(member_casual),
-            proportion = trips_by_type / n_trips) %>% 
-  ungroup() %>% 
-  mutate(decile_popularity = cut(x = n_trips,
-                      breaks = quantile(n_trips, probs = seq(0.05,.95,0.1)),
-                      # labels = c(.1,2,.3,.4,.5,.6,.7,.8,.9,1)
-                      )) 
-
-tmp %>% 
-  group_by(decile_popularity, member_casual) %>% 
-  summarise(n = n()) %>% 
-  ggplot(aes(decile_popularity, n, fill=member_casual)) +
-  geom_col(position='fill') +
-  labs(x = '',
-       y = 'Proportion using these stations')
-
-# unique(tmp$decile)
 ```
 
 ## Order all stations by popularity, plot the proportion of members using it
@@ -602,15 +569,18 @@ boundaries_chi %>% ggplot() +
   geom_sf() +
   geom_bin2d(data = stations, aes(x = station_lng, y = station_lat),
              bins = c(25,50)) +
-  scale_fill_viridis(option= 'turbo')
+  scale_fill_viridis(option= 'turbo') +
+  labs(title = "Station density")
 
 # What I'd like to do though is calculate a stat for each CALCULATED BIN.
 # Like, the program bins all the coordinates and I want a mean of
-# mean_duration for all observations in the bin
+# mean_duration for all observations in the bin. Right now the default
+# is just to count observations in the bin.
 boundaries_chi %>% ggplot() +
   geom_sf() +
   geom_hex(data = stations, aes(x = station_lng, y = station_lat), bins = c(18,24)) +
-  scale_fill_viridis(option= 'turbo')
+  scale_fill_viridis(option= 'turbo') +
+  labs(title = "Station density")
 
 # Sorting the data by p_trips_casual controls the order that dots are plotted
 # in the map in the next code block. This is important because of overplotting.
@@ -625,7 +595,8 @@ stations_users <- stations %>%
   filter(member_casual == "casual") %>% 
   rename(n_trips_casual = n_trips) %>% 
   arrange(p_trips_casual)
-  
+
+# Map station usage: colour stations by casual use percentage (ride start)
 boundaries_chi %>% ggplot() +
   geom_sf() +
   geom_point(data = stations_users, 
@@ -636,6 +607,7 @@ boundaries_chi %>% ggplot() +
        subtitle = "Casual usage at each station",
        color = "Casual use\n")
 
+# Map the casual hot spots: stations over 75% casual use
 boundaries_chi %>% ggplot() +
   geom_sf() +
   geom_point(data = stations_users, 
@@ -652,8 +624,7 @@ boundaries_chi %>% ggplot() +
 
 ## Average rider motion by hour
 Here we'll examine the overall traffic flow: as the hours go by, do riders tend
-to ride in a particular direction?  (yes)  We expected this because the
-morning and evening commute times are not of equal magnitude.  Overall it
+to ride in a particular direction?  **Yes!** Overall it
 seems like there is a daily tendency for riders (and bicycles) to move
 northwest.
 
@@ -674,6 +645,7 @@ angle_from_x_axis <- function(y,x) {
   } 
   angle * 180 / pi
 }
+# trend over the entire dataset
 overall_vec <- df %>% 
   summarize(x = sum(trip_delta_x), 
             y = sum(trip_delta_y),
@@ -682,6 +654,7 @@ overall_vec <- df %>%
             magnitude = sqrt(x^2 + y^2),
             angle = angle_from_x_axis(y,x),
             atan = atan(y/x))
+# monthly trends
 monthly_vec <- df %>% 
   group_by(month = lubridate::month(started_at),
            hour = lubridate::hour(started_at)) %>% 
@@ -692,6 +665,7 @@ monthly_vec <- df %>%
             magnitude = sqrt(x^2 + y^2),
             angle = angle_from_x_axis(y,x),
             atan = atan(y/x))
+# day-of-the-week plus hour trends
 dow_vec <- df %>% 
   group_by(weekday,
            hour = lubridate::hour(started_at)) %>% 
@@ -702,6 +676,7 @@ dow_vec <- df %>%
             magnitude = sqrt(x^2 + y^2),
             angle = angle_from_x_axis(y,x),
             atan = atan(y/x))
+# hourly trends
 vecs <- df %>% 
   group_by(hour = lubridate::hour(started_at)) %>% 
   summarize(x = sum(trip_delta_x), 
@@ -714,8 +689,13 @@ vecs <- df %>%
 
 ## Overall traffic flow by hour
 We compute an estimate of the overall flow of traffic (direction and distance) 
-for every trip taken each hour.  (*Technical note: This is done by adding the
-vectors of every trip up to compute the 'overall trip' during that hour)
+for every trip taken each hour.  We see the strong signals for the morning
+and evening commutes, with the evening being larger.  This probably leads to
+bicycles being distributed over the city unequally, with a bias towards the
+northwest.
+
+*Technical note: This is done by adding the
+vectors of every trip up to compute the 'overall trip' during that hour*
 
 ```{r traffic flow by hour}
 ggplot(vecs, aes(x=0, y=0, xend=x, yend=y)) +
@@ -733,6 +713,8 @@ ggplot(vecs, aes(x=0, y=0, xend=x, yend=y)) +
 ```
 
 ## Traffic flow by hour and weekday
+Between 4pm and 6pm, notice the distinct difference in traffic flow on the
+weekend.
 
 ```{r Traffic flow by hour and weekday}
 ggplot(dow_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(weekday))) +
@@ -745,8 +727,7 @@ ggplot(dow_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(weekday))) +
         panel.background = element_blank()) +
   geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
   facet_wrap(~hour, ncol = 6) +
-  labs(title = "Overall traffic direction and strength, by hour",
-       subtitle = "Colours denote weekday",
+  labs(title = "Overall traffic direction and strength, by hour and weekday",
        caption = "Note the variation on different days between 4-6pm") +
   scale_color_viridis(discrete = TRUE, option="turbo")
 ```
@@ -754,8 +735,8 @@ ggplot(dow_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(weekday))) +
 ## Examining the evening rush hour traffic
 The rush hour traffic flow has two main patterns.
 
-- On **Monday to Thursday** rush hour traffic trends strongly to the northwest.
-- On **weekends** the rush hour traffic trends west to southwest
+- On **Monday to Friday**, evening rush hour traffic trends strongly to the northwest.
+- On **weekends** it trends west to southwest
 
 ```{r Traffic flow by hour and weekday limited to rush hour}
 dow_vec %>%
@@ -785,6 +766,7 @@ dow_vec %>%
 ```
 
 ## Hourly traffic flow, with monthly patterns
+Not useful. Traffic flow doesn't notably vary by month, other than in magnitude.
 
 ```{r traffic flow by hour and month}
 ggplot(monthly_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(month))) +
