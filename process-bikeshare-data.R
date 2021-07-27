@@ -1,20 +1,34 @@
-# Andrew Luyt, 2021
-# Preprocess the numerous raw .csv files containing bikeshare ride
-# information.
-#
-# Read all csv files available (except alldata.csv) into a single
-# dataframe, add a trip_minutes feature, save complete dataset to
-# alldata.csv.gz
+#' ---
+#' title: "Cleaning and Pre-Processing Divvy Bikeshare Data"
+#' author: "Andrew Luyt"
+#' date: "2021-07-27"
+#' output:
+#'   html_document:
+#'    keep_md: true
+#' ---
 
+#' ## Purpose
+#' Transform the numerous raw .csv files into a single, cleaned .csv with
+#' some extra features.
+#'
+#' Read **all** csv files available (except `alldata.csv.gz`) into a single
+#' dataframe, add features, then save complete dataset to
+#' `alldata.csv.gz`.
+#'
+#' If datasets which are too old to be relevant are included in the data
+#' directory, they will also be read.  Only include files in the data
+#' directory which you wish to include in the analysis.
+#+ message=FALSE
 library(data.table)  # use fread for speed
 library(R.utils)     # allow fread to read/write .gz
 library(tidyverse)
 library(lubridate)
 library(geosphere)   # calculate trip distances without creating sf objects
 
-# We don't need trip_id (it's just a unique ID) and dropping it
-# cuts memory use in half.
-# factors are slower to read but reduce memory consumption
+#+ message=FALSE
+# Don't include trip_id (it's just a unique string ID) and dropping it
+# cuts memory significantly.
+# Factors are slower to read but also reduce memory consumption.
 df <-
   list.files(path = "./data",
              pattern = "*-divvy-tripdata.csv.gz",
@@ -25,56 +39,66 @@ df <-
                                   end_station_id = 'character'),
                 stringsAsFactors = TRUE))
 
-# Problems fixed by dropping rows:
-#  - blank stations
-#  - huge trip times: are these bikes stolen, then recovered?
-#     - filter out any trips longer than 24 hours
-# New variables added:
-#  - weekday (1-7, starts Monday)
-#  - sector: rectangular area on map. Created by rounding lng/lat to
-#    two decimal points.
-#    - meant as an aggregating measure. Incidents could be, e.g.:
-#       - plotted as in countplot() with increasing size of the point
-#       - mapped onto a rectangular grid. This grid would have to be calculated
-#         and some form of sf object created, which could then be coloured, etc.
+#' ## Data Issues Resolved
+#' We drop rows to remove incomplete, probably-corrupt, or irrelevant data:
+#'
+#'  - Blank station information: we need to know where trips start and end.
+#'  - Huge or tiny trip times: are these bikes stolen, lost, or broken, then brought
+#'    back into service?  Did someone undock a bike, then change their mind?
+#'    Whatever the cause, these outliers are irrelevant for casual vs member
+#'    analysis.
+#'     - We filter out any trips longer than 24 hours or shorter than 1 minute
+#'
+#' ## New variables added:
+#'
+#'  - `weekday` (1-7, starts Monday)
+#'  - Four `sector` variables: a rectangular area on the map. Created by
+#'  rounding longitude & latitude to two decimal points.
+#'    - Interpreted as a geographical **area** or "bin" where a trip starts
+#'    or ends, as opposed to a point. Meant as a convenient aggregating measure
+#'    for later analysis.
+#'  - `trip_delta_`: the change in longitude and latitude over the trip.
+#'  - `is_round_trip`: a boolean flag that shows if the trip started and ended
+#'    at the same station.  Meant to distinguish between commute-type trips
+#'    and pleasure cruises.
+#'  - `trip_distance_m`: straight-line distance (meters) from start to finish.
+#'  This is a proxy for the actual trip path as ridden, which is not available
+#'  in the dataset. It will always be smaller than reality.
+
+#+ message=FALSE
 df <- df %>%
   mutate(
-    trip_minutes = abs(as.numeric(
-      difftime(ended_at, started_at, units = "mins")
-    )),
-    weekday = factor(
-      lubridate::wday(started_at, week_start = 1),
-      levels = 1:7,
-      labels = c(
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-        "Sunday"
-      )
-    ),
+    trip_minutes = abs(as.numeric(difftime(ended_at, started_at, units = "mins"))),
+    weekday = factor(lubridate::wday(started_at, week_start = 1),
+                     levels = 1:7,
+                     labels = c("Monday", "Tuesday", "Wednesday",
+                                "Thursday", "Friday", "Saturday", "Sunday")),
     start_lng_sector = round(start_lng, digits = 2),
     start_lat_sector = round(start_lat, digits = 2),
     end_lng_sector = round(end_lng, digits = 2),
     end_lat_sector = round(end_lat, digits = 2),
     trip_delta_x = end_lng - start_lng,
     trip_delta_y = end_lat - start_lat,
-    is_round_trip = if_else(start_station_id == end_station_id, 'round trip', 'a to b')
-  ) %>%
+    is_round_trip = if_else(start_station_id == end_station_id,
+                            'round trip', 'a to b')) %>%
   filter(
-    start_station_name != "" & start_station_id != "",
-    end_station_name != "" & end_station_id != "",!is.na(start_lng),!is.na(start_lat),!is.na(end_lng),!is.na(end_lat),
+    start_station_name != "",
+    start_station_id != "",
+    end_station_name != "",
+    end_station_id != "",
+    !is.na(start_lng),
+    !is.na(start_lat),
+    !is.na(end_lng),
+    !is.na(end_lat),
     trip_minutes < 1440,
     trip_minutes > 1
   ) %>%
-  # Create the trip distance feature. geosphere::distm isn't vectorized: do it
-  # rowwise. This is unfortunately slow. distCosine is accurate to about 0.5% as
-  # is the fastest.  This is good enough accuracy and takes ~5min on my laptop.
+  # Create the trip distance feature. geosphere::distm isn't vectorized, so do it
+  # rowwise. This is unfortunately slow. distCosine() is accurate to about 0.5%
+  # and is the fastest distance measure.  This is accurate enough and
+  # takes ~5min on my laptop.
   rowwise() %>%
-  mutate(trip_distance_m = distm(
-    # distance is in meters
+  mutate(trip_distance_m = geosphere::distm(
     x = c(start_lng, start_lat),
     y = c(end_lng, end_lat),
     fun = distCosine
