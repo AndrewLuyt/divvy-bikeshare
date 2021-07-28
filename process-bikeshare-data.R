@@ -15,9 +15,10 @@
 #' dataframe, add features, then save complete dataset to
 #' `alldata.csv.gz`.
 #'
-#' If datasets which are too old to be relevant are included in the data
-#' directory, they will also be read.  Only include files in the data
+#' Only include files in the data
 #' directory which you wish to include in the analysis.
+#' If datasets which are too old to be relevant are included in the data
+#' directory, they will also be read.
 #+ message=FALSE
 library(data.table)  # use fread for speed
 library(R.utils)     # allow fread to read/write .gz
@@ -57,6 +58,9 @@ df <-
 #'    - Interpreted as a geographical **area** or "bin" where a trip starts
 #'    or ends, as opposed to a point. Meant as a convenient aggregating measure
 #'    for later analysis.
+#'  - `trip_minutes`: Some trips are of negative duration and will be filtered
+#'  out later. Online research suggests that some of this comes from Divvy taking
+#'  bikes in and out of service for quality control reasons.
 #'  - `trip_delta_`: the change in longitude and latitude over the trip.
 #'  - `is_round_trip`: a boolean flag that shows if the trip started and ended
 #'    at the same station.  Meant to distinguish between commute-type trips
@@ -68,7 +72,7 @@ df <-
 #+ message=FALSE
 df <- df %>%
   mutate(
-    trip_minutes = abs(as.numeric(difftime(ended_at, started_at, units = "mins"))),
+    trip_minutes = as.numeric(difftime(ended_at, started_at, units = "mins")),
     weekday = factor(lubridate::wday(started_at, week_start = 1),
                      levels = 1:7,
                      labels = c("Monday", "Tuesday", "Wednesday",

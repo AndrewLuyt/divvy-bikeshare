@@ -200,7 +200,7 @@ df &lt;-
 <p>We drop rows to remove incomplete, probably-corrupt, or irrelevant data:</p>
 <ul>
 <li>Blank station information: we need to know where trips start and end.</li>
-<li>Huge or tiny trip times: are these bikes stolen, lost, or broken, then brought back into service? Did someone undock a bike, then change their mind? Whatever the cause, these outliers are irrelevant for casual vs member analysis.
+<li>Huge or tiny trip times: are these bikes stolen, lost, or broken, then brought back into service? Did someone undock a bike, then change their mind? Some online research suggests all of these reasons, as well as Divvy taking bikes out of circulation for quality control reasons. Whatever the cause, these outliers are irrelevant for casual vs member analysis.
 <ul>
 <li>We filter out any trips longer than 24 hours or shorter than 1 minute</li>
 </ul></li>
@@ -214,13 +214,14 @@ df &lt;-
 <ul>
 <li>Interpreted as a geographical <strong>area</strong> or “bin” where a trip starts or ends, as opposed to a point. Meant as a convenient aggregating measure for later analysis.</li>
 </ul></li>
-<li><code>trip_delta_</code>: the change in lontitude and latitude over the trip.</li>
+<li><code>trip_minutes</code>: Some trips are of negative duration and will be filtered out later. Online research suggests that some of this comes from Divvy taking bikes in and out of service for quality control reasons.</li>
+<li><code>trip_delta_</code>: the change in longitude and latitude over the trip.</li>
 <li><code>is_round_trip</code>: a boolean flag that shows if the trip started and ended at the same station. Meant to distinguish between commute-type trips and pleasure cruises.</li>
 <li><code>trip_distance_m</code>: straight-line distance (meters) from start to finish. This is a proxy for the actual trip path as ridden, which is not available in the dataset. It will always be smaller than reality.</li>
 </ul>
 <pre class="r"><code>df &lt;- df %&gt;%
   mutate(
-    trip_minutes = abs(as.numeric(difftime(ended_at, started_at, units = &quot;mins&quot;))),
+    trip_minutes = as.numeric(difftime(ended_at, started_at, units = &quot;mins&quot;)),
     weekday = factor(lubridate::wday(started_at, week_start = 1),
                      levels = 1:7,
                      labels = c(&quot;Monday&quot;, &quot;Tuesday&quot;, &quot;Wednesday&quot;,
@@ -246,12 +247,11 @@ df &lt;-
     trip_minutes &gt; 1
   ) %&gt;%
   # Create the trip distance feature. geosphere::distm isn&#39;t vectorized, so do it
-  # rowwise. This is unfortunately slow. distCosine is accurate to about 0.5% and
-  # is the fastest distance measure.  This is good enough accuracy and
+  # rowwise. This is unfortunately slow. distCosine() is accurate to about 0.5%
+  # and is the fastest distance measure.  This is accurate enough and
   # takes ~5min on my laptop.
   rowwise() %&gt;%
-  mutate(trip_distance_m = distm(
-    # distance is in meters
+  mutate(trip_distance_m = geosphere::distm(
     x = c(start_lng, start_lat),
     y = c(end_lng, end_lat),
     fun = distCosine

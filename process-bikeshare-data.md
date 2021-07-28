@@ -48,6 +48,8 @@ We drop rows to remove incomplete, probably-corrupt, or irrelevant data:
  - Blank station information: we need to know where trips start and end.
  - Huge or tiny trip times: are these bikes stolen, lost, or broken, then brought
    back into service?  Did someone undock a bike, then change their mind?
+   Some online research suggests all of these reasons, as well as Divvy
+   taking bikes out of circulation for quality control reasons.
    Whatever the cause, these outliers are irrelevant for casual vs member
    analysis.
     - We filter out any trips longer than 24 hours or shorter than 1 minute
@@ -60,7 +62,10 @@ We drop rows to remove incomplete, probably-corrupt, or irrelevant data:
    - Interpreted as a geographical **area** or "bin" where a trip starts
    or ends, as opposed to a point. Meant as a convenient aggregating measure
    for later analysis.
- - `trip_delta_`: the change in lontitude and latitude over the trip.
+ - `trip_minutes`: Some trips are of negative duration and will be filtered
+ out later. Online research suggests that some of this comes from Divvy taking
+ bikes in and out of service for quality control reasons.
+ - `trip_delta_`: the change in longitude and latitude over the trip.
  - `is_round_trip`: a boolean flag that shows if the trip started and ended
    at the same station.  Meant to distinguish between commute-type trips
    and pleasure cruises.
@@ -72,7 +77,7 @@ We drop rows to remove incomplete, probably-corrupt, or irrelevant data:
 ```r
 df <- df %>%
   mutate(
-    trip_minutes = abs(as.numeric(difftime(ended_at, started_at, units = "mins"))),
+    trip_minutes = as.numeric(difftime(ended_at, started_at, units = "mins")),
     weekday = factor(lubridate::wday(started_at, week_start = 1),
                      levels = 1:7,
                      labels = c("Monday", "Tuesday", "Wednesday",
@@ -98,12 +103,11 @@ df <- df %>%
     trip_minutes > 1
   ) %>%
   # Create the trip distance feature. geosphere::distm isn't vectorized, so do it
-  # rowwise. This is unfortunately slow. distCosine is accurate to about 0.5% and
-  # is the fastest distance measure.  This is good enough accuracy and
+  # rowwise. This is unfortunately slow. distCosine() is accurate to about 0.5%
+  # and is the fastest distance measure.  This is accurate enough and
   # takes ~5min on my laptop.
   rowwise() %>%
-  mutate(trip_distance_m = distm(
-    # distance is in meters
+  mutate(trip_distance_m = geosphere::distm(
     x = c(start_lng, start_lat),
     y = c(end_lng, end_lat),
     fun = distCosine
