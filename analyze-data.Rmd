@@ -1,6 +1,7 @@
 ---
 title: "Analyze: How do Casual Users and Annual Subscribers Differ?"
 author: "Andrew Luyt"
+date: "2021-07-27"
 output: github_document
 ---
 
@@ -16,7 +17,7 @@ library(sf)
 library(here)
 library(viridis)
 
-x.txt.size = 15  # scale the x axis ticks in many graphs
+x.txt.size = 13  # scale the x axis ticks in many graphs
 
 DATA = here("data/alldata.csv.gz")
 df <- fread(
@@ -51,21 +52,52 @@ boundaries_chi <- boundaries_chi %>%
   select(geometry)
 ```
 
+## Quick descriptive statistics
+
+```{r descriptive statistics, echo=FALSE}
+# number of rides, by membership + weekday
+df %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(n_rides = n())
+
+# trip minutes by membership
+df %>% 
+  group_by(member_casual) %>% 
+  summarise(across(trip_minutes, c(min=min, max=max, mean=mean, median=median, sd=sd)))
+
+# trip minutes by membership + weekday
+df %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(across(trip_minutes, c(min=min, max=max, mean=mean, median=median, sd=sd))) %>% 
+  ggplot(aes(weekday, trip_minutes_mean, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  labs(title = "Average Length of Trip over the week",
+       x = NULL, y = "Minutes",
+       caption = "Source: Divvy public data") +
+  theme(legend.title = element_blank())
+```
+
+
 ## Who rides most often?
 Members take the majority of rides.
 
 ```{r who rides most often, echo=FALSE}
-df %>% ggplot(aes(x = member_casual, fill = member_casual)) +
-  geom_bar() +
+df %>% 
+  group_by(member_casual) %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes(x = member_casual, y = n, fill = member_casual)) +
+  geom_col() +
   scale_y_continuous(labels = scales::comma) +
-  labs(
-    title = "Total number of rides",
-    subtitle = paste("Since", lubridate::month(min(df$started_at), label = TRUE),
-                     year(min(df$started_at))),
-    x = NULL,
-    y = "Rides"
-  ) +
-  theme(axis.text.x = element_text(size = x.txt.size))
+  labs(title = "Total number of rides",
+       subtitle = paste("Since", lubridate::month(min(df$started_at), label = TRUE),
+                        year(min(df$started_at))),
+       x = NULL, y = "Rides",
+       caption = "Source: Divvy public data") +
+  geom_text(aes(label = scales::comma(n)), 
+            vjust = 2.1,
+            size = 5) +
+  theme(axis.text.x = element_text(size = x.txt.size),
+        legend.title = element_blank())
 ```
 
 
@@ -87,7 +119,8 @@ df %>%
   geom_bar(position = "fill") +
   scale_x_continuous(labels = scales::comma) +
   labs(title="What kind of bikes are being chosen?", subtitle="Casuals vs Members",
-       y=NULL, x = 'Proportion')
+       y=NULL, x = 'Proportion',
+       caption = "Source: Divvy public data")
 ```
 
 ## How do trip distances vary?
@@ -103,12 +136,12 @@ df %>%
   ggplot(aes(member_casual, mean_trip_distance, fill = member_casual)) +
   geom_col() +
   labs(title = "Average trip distance (Km)",
-       subtitle = "Casuals vs Members",
-       caption  = 'Distance is straight-line, or "as the crow flies."',
+       subtitle = "Straight-line distance, 'as the crow flies'",
+       caption = "Source: Divvy public data",
        x = NULL, y = "Kilometers") +
   geom_text(aes(label = round(mean_trip_distance / 1000, digits = 1)), 
             vjust = 2.1,
-            size = 6) +
+            size = 5) +
   theme(legend.position = "none",
         axis.text.x = element_text(size = x.txt.size))
 ```
@@ -124,12 +157,12 @@ df %>%
   summarise(mean_ride_length = mean(trip_minutes)) %>% 
   ggplot(aes(member_casual, mean_ride_length, fill = member_casual)) +
   geom_col() +
-  labs(title = "Average ride length (minutes)", 
-       subtitle = "Casuals vs Members",
-       x = NULL, y = "Minutes") +
+  labs(title = "Average ride length (minutes)",
+       x = NULL, y = "Minutes",
+       caption = "Source: Divvy public data") +
   geom_text(aes(label = round(mean_ride_length, digits = 1)), 
             vjust = 2.1,
-            size = 6) +
+            size = 5) +
   theme(legend.position = "none",
         axis.text.x = element_text(size = x.txt.size))
 ```
@@ -152,14 +185,14 @@ df %>%
   geom_col() +
   labs(title = "Mean trip speed (Kph)",
        subtitle = "Members ride about 30% faster",
-       x = NULL, y = "Kilometers per hour") +
+       x = NULL, y = "Kilometers per hour",
+       caption = "Source: Divvy public data") +
   geom_text(aes(label = round(mean_kph, digits = 1)), 
             vjust = 2.1,
-            size = 6) +
+            size = 5) +
   theme(legend.position = "none",
         axis.text.x = element_text(size = x.txt.size))
 ```
-
 
 ## Members ride more often, casuals ride longer: who rides the most total minutes?
 Casuals spend more time using the bicycles.
@@ -175,7 +208,8 @@ df %>% group_by(member_casual) %>%
                       lubridate::month(min(df$started_at), label = TRUE),
                       year(min(df$started_at))),
        x = NULL,
-       y = "Total Minutes") +
+       y = "Total Minutes",
+       caption = "Source: Divvy public data") +
   stat_summary(fun.y = sum, 
                geom="text", 
                aes(label=scales::comma(total_minutes)), vjust = 2, size=5) +
@@ -209,10 +243,8 @@ short and a small number being over an hour. We will trim off the longest 5% of
 trips so we can see the typical pattern of ride length.
 
 **One observation is that casual riders make up almost all trips longer than 40 
-minutes!**
-
-**TODO: is there some limitation on ride length for members? The cutoff
-around 40 minutes looks quite sudden.**
+minutes.**  Online research shows that in 2018, Divvy extended the maximum
+ride length for members to 45 minutes (up from 30). Longer rides incur a fee.
 
 One question to arise from this: what sort of bike is most comfortable for
 long trips, and which are better for short ones?  Do members tend to choose
@@ -227,11 +259,12 @@ df %>%
   geom_histogram(bins = 40, alpha = 0.7) +
   scale_y_continuous(labels = scales::comma) +
   labs(title = "Ride durations",
-       x = "Minutes",
-       y = "Count of rides") +
-  annotate(geom = "text", x = 70, y = 200000, label = "Members rarely ride more than 40 minutes") +
-  annotate(geom = "curve", x = 50, y = 170000, xend = 40, yend = 9000, 
-           curvature = 0.1, arrow = arrow(length = unit(.02, "npc")))
+       x = "Minutes", y = "Count of rides",
+       caption = "Source: Divvy public data") +
+  annotate(geom = "text", x = 70, y = 200000, label = "Members pay a surcharge if\n riding more than 45 minutes") +
+  annotate(geom = "curve", x = 50, y = 160000, xend = 39, yend = 16000, 
+           curvature = 0.1, arrow = arrow(length = unit(.02, "npc"))) +
+  theme(legend.title = element_blank())
 ```
 
 ## Ride duration, by weekday
@@ -246,8 +279,9 @@ df %>%
   ggplot(aes(weekday, mean_ride_length, fill=member_casual)) +
   geom_col(position = position_dodge(width = 0.4), alpha = 0.8) + 
   labs(title = "Average Ride lengths over the week",
-       x = NULL, y = "Average minutes") +
-  theme(legend.position = "right", legend.title = element_blank() )
+       x = NULL, y = "Average minutes",
+       caption = "Source: Divvy public data") +
+  theme(legend.title = element_blank())
 ```
 
 ## Number of trips by day of the week
@@ -265,7 +299,8 @@ df %>%
   geom_bar(position = position_dodge(width = 0.5), alpha = 0.8) +
   scale_y_continuous(labels = scales::comma) +
   labs(title = "Total Number of rides, by day",
-       x=NULL, y = "Rides") +
+       x=NULL, y = "Rides",
+       caption = "Source: Divvy public data") +
   theme(legend.title = element_blank())
 ```
 
@@ -285,7 +320,8 @@ df %>%
   geom_smooth(size=2, se = FALSE) + 
   labs(title = "Seasonal variation in bike usage",
        subtitle = "Daily trip volume, 2020-2021", 
-       x = 'Date', y = "Rides") +
+       x = 'Date', y = "Rides",
+       caption = "Source: Divvy public data") +
   theme(legend.title = element_blank())
 ```
 
@@ -306,7 +342,8 @@ df %>%
   labs(title = "Trip Volume: Weekend vs Weekday", 
        subtitle = "Weekends are king for casuals", 
        x = 'Date', y = "Rides",
-       color = "Weekend?") +
+       color = "Weekend?",
+       caption = "Source: Divvy public data") +
   guides(color = guide_legend(reverse = TRUE))   # reverse legend order, TRUE first
 ```
 
@@ -319,7 +356,8 @@ The tendency is similar for ending times (not shown.)
 df %>% 
   ggplot(aes(x=member_casual, y=hour(started_at), fill = member_casual)) +
   geom_boxplot() +
-  labs(x="", y = "Hour the trip started", title = "When do trips start?")
+  labs(x = NULL, y = "Hour the trip started", title = "When do trips start?",
+       caption = "Source: Divvy public data")
 ```
 
 
@@ -336,7 +374,8 @@ df %>% ggplot(aes(hour(started_at), fill=member_casual)) +
   geom_bar(position = position_dodge(width=0.7), alpha = 0.8) +
   scale_y_continuous(labels = scales::comma) +
   labs(title = "How many rides start in each hour?",
-       x = "Hour", y = NULL) +
+       x = "Hour", y = NULL,
+       caption = "Source: Divvy public data") +
   annotate("text", x = 5, y = 220000, label = "Morning rush hour, members only!") +
   annotate("curve", x = 1, y = 210000, xend = 5.5, yend = 120000,
            curvature = 0.1, arrow = arrow(length = unit(0.07, "npc"))) +
@@ -359,7 +398,8 @@ df %>%
   labs(title="Distribution of station use",
        subtitle = "Stations vary from 100% casual to near-zero!",
        x = 'Percentage of casuals',
-       y = 'Number of stations')
+       y = 'Number of stations',
+       caption = "Source: Divvy public data")
 ```
 
 ## Order all stations by popularity, plot the proportion of members using it
@@ -377,12 +417,22 @@ df %>%
          mostly_casual = casual_percent > 50) %>% 
   arrange(desc(total)) %>% 
   ggplot(aes(desc(rank(total)), casual_percent)) +
-  geom_point(aes(color = mostly_casual)) +
-  geom_smooth() +
+  geom_point(aes(color = factor(mostly_casual, 
+                                levels = c(TRUE, FALSE),
+                                labels = c("Mostly casual", "Mostly members")))) +
+  # geom_smooth() +
   scale_x_continuous(breaks = NULL, name = "(-)     Station Popularity     (+)") +
   labs(x = 'Popularity of station', y = '% who are casuals',
        title = 'Percent of riders being casuals, by station popularity',
-       subtitle = "The busier a station, the more often that casuals tend to use them")
+       subtitle = "The busier a station, the more often that casuals tend to use them",
+       caption = "Source: Divvy public data") +
+  annotate("text", x = -660, y = 87, label = "The busiest stations are\n mostly used casually") +
+  annotate("curve", x = -550, y = 90, xend = -100, yend = 95, curvature = 0.1,
+           arrow = arrow(length = unit(0.04, "npc"))) +
+  annotate("curve", x = -550, y = 90, xend = -70, yend = 28, curvature = -0.1,
+           arrow = arrow(length = unit(0.04, "npc"))) +
+  coord_flip() +
+  theme(legend.title = element_blank())
 ```
 
 
