@@ -534,38 +534,55 @@ df %>%
        caption = "Source: Divvy public data")
 ```
 
-## Order all stations by popularity, plot the proportion of members using it
+## Which stations do casuals use?
 
-We see a clear pattern. As stations get busier, the proportion of casuals rises.
-There is still a large amount of variability however.
+We'll look at this question in two parts.  **First** we'll sort the stations
+by popularity (number of trips that start there) and colour the points by the
+proportion of the type of user. **Second** we will plot these stations on a
+map of Chicago.
 
-```{r station popularity scatter and fit, echo=FALSE, message=FALSE}
+**First**: station popularity. We can extract three main insights from the 
+graph below:
+
+- Overall, most stations are used primarily by members
+- The least popular stations are dominated by casual use
+- A few of the city's most popular stations are over 75% casual use
+  - These might make excellent targets for any pilot programs targeting casual
+  users
+
+```{r station popularity and use, message=FALSE}
 df %>% 
   group_by(start_station_id, member_casual) %>% 
-  summarize(n = n()) %>% 
-  mutate(total = sum(n)) %>% 
-  filter(member_casual == 'casual') %>% 
-  mutate(casual_percent = n / total * 100,
-         mostly_casual = casual_percent > 50) %>% 
-  arrange(desc(total)) %>% 
-  ggplot(aes(desc(rank(total)), casual_percent)) +
-  geom_point(aes(color = factor(mostly_casual, 
+  summarise(n = n()) %>% 
+  mutate(total_trips = sum(n),
+         p_casual = n / total_trips,
+         mostly_casual = factor(p_casual > .5,
                                 levels = c(TRUE, FALSE),
-                                labels = c("Mostly casual", "Mostly members")))) +
-  # geom_smooth() +
-  scale_x_continuous(breaks = NULL, name = "(-)     Station Popularity     (+)") +
-  labs(x = 'Popularity of station', y = '% who are casuals',
-       title = 'Percent of riders being casuals, by station popularity',
-       subtitle = "The busier a station, the more often that casuals tend to use them",
+                                labels = c("Mostly casual", "Mostly members"))) %>% 
+  filter(member_casual == 'casual') %>% 
+  select(start_station_id, p_casual, total_trips, mostly_casual) %>% 
+  arrange(total_trips) %>% 
+  filter(total_trips > 100) %>% # remove nearly unused stations (some might be obsolete?)
+  ggplot(aes(total_trips, p_casual)) +
+  geom_point(aes(color = mostly_casual)) +
+  geom_smooth() +
+  scale_x_log10(breaks = NULL, name = "(-)     Station Popularity     (+)") +
+  scale_y_continuous(labels = scales::percent) +
+  annotate("text", x = 600, y = 0.95, 
+           label = "Least popular") +
+  annotate("text", x = 8000, y = 0.95, 
+           label = "Most popular") +
+  annotate("curve", x = 600, y = 0.9, xend = 140, yend=.8, curvature = -0.1,
+           arrow = arrow(length = unit(0.04, "npc"))) +
+  annotate("curve", x = 8000, y = 0.9, xend = 25000, yend=.75, curvature = 0.1,
+           arrow = arrow(length = unit(0.04, "npc"))) +
+  labs(title = "Station popularity and typical users",
+       subtitle = "The least and most popular stations are used casually",
+       y = "Casual use",
        caption = "Source: Divvy public data") +
-  annotate("text", x = -660, y = 87, label = "The busiest stations are\n mostly used casually") +
-  annotate("curve", x = -550, y = 90, xend = -100, yend = 95, curvature = 0.1,
-           arrow = arrow(length = unit(0.04, "npc"))) +
-  annotate("curve", x = -550, y = 90, xend = -70, yend = 28, curvature = -0.1,
-           arrow = arrow(length = unit(0.04, "npc"))) +
-  coord_flip() +
   theme(legend.title = element_blank())
 ```
+
 
 
 ## Plot stations on the map
@@ -593,7 +610,9 @@ ggplot(boundaries_chi, aes()) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   labs(title = "Length of trips starting here")
+```
 
+```{r mapping the dataset 2, echo=FALSE, message=FALSE}
 x3 <- df %>% 
   # slice_sample(n = 1000000) %>% 
   group_by(end_lng_sector, end_lat_sector, member_casual) %>% 
@@ -609,8 +628,9 @@ ggplot(boundaries_chi, aes()) +
   scale_fill_viridis(option = 'plasma') +
   facet_wrap(~member_casual) +
   labs(title = "Length of trips ending here")
+```
 
-
+```{r mapping the dataset 3, echo=FALSE, message=FALSE}
 # let the geom (hexbin, 2d density, count) do the aggregation from raw lng/lat
 boundaries_chi %>% ggplot(aes()) + 
   geom_sf() +
@@ -619,7 +639,8 @@ boundaries_chi %>% ggplot(aes()) +
   facet_wrap(~member_casual) +
   theme(panel.background = element_rect(fill = "white")) +
   labs(title="Number of trips started in this area")
-
+```
+```{r mapping the dataset 4, echo=FALSE, message=FALSE}
 # TRIP ENDS
 ggplot(boundaries_chi, aes()) + 
     geom_sf() +
@@ -628,22 +649,26 @@ ggplot(boundaries_chi, aes()) +
   facet_wrap(~member_casual) +
   theme(panel.background = element_rect(fill = "white")) +
   labs(title="Number of trips ended in this area")
-
+```
+```{r mapping the dataset 5, echo=FALSE, message=FALSE}
 # TRIP starts and ends in the same station
 # see how there is a huge spike of round tripping casuals right in that one area
 pleasure_cruises <- df %>% 
-  filter(is_round_trip == 'round trip')
+  filter(is_round_trip == 'round trip', member_casual == 'casual')
+
 ggplot(boundaries_chi, aes()) + 
   geom_sf() +
   # geom_hex(data = pleasure_cruises,
   #           mapping = aes(end_lng, end_lat)) +
   geom_bin2d(data = pleasure_cruises, mapping = aes(end_lng, end_lat), bins=c(25,50)) +
   scale_fill_viridis(option = 'plasma') +
-  facet_wrap(~member_casual) +
+  # facet_wrap(~member_casual) +
   theme(panel.background = element_rect(fill = "white")) +
-  labs(title="Number of trips started & ended at the same station")
+  labs(title="Where do casual pleasure cruises start?")
 rm(pleasure_cruises)
+```
 
+```{r mapping the dataset 6, echo=FALSE, message=FALSE}
 # TRIP starts and ends in different places: map start point
 a_to_b <- df %>% 
   filter(is_round_trip == 'a to b')
@@ -667,7 +692,8 @@ ggplot(boundaries_chi, aes()) +
   theme(panel.background = element_rect(fill = "white")) +
   labs(title="Number of trips started elsewhere & ended here")
 rm(a_to_b)
-
+```
+```{r mapping the dataset 7, echo=FALSE, message=FALSE}
 # Facet on membership & is_round_trip
 # 42 & 25 are the number of rectangular sectors
 ggplot(boundaries_chi, aes()) + 
@@ -684,7 +710,8 @@ ggplot(boundaries_chi, aes()) +
   facet_wrap(~member_casual + is_round_trip, scales = 'free', ) +
   theme(panel.background = element_rect(fill = "white"), aspect.ratio = 42/25) +
   labs(title="Number of trips that ended here")
-
+```
+```{r mapping the dataset 8, echo=FALSE, message=FALSE}
 # make a station density map
 stations <- df %>% 
   group_by(start_station_id, member_casual) %>% 
@@ -712,7 +739,30 @@ ggplot(boundaries_chi, aes()) +
   geom_bin2d(data = stations, mapping = aes(station_lng, station_lat), bins=c(25,50)) +
   scale_fill_viridis(option= 'plasma') +
   labs(title = 'Station density')
+```
+```{r mapping the dataset 12, echo=FALSE, message=FALSE}
+# Station density map again, simpler?
+# Does the counts (rides starting in a bin) quite nicely.
+boundaries_chi %>% ggplot() +
+  geom_sf() +
+  geom_bin2d(data = stations, aes(x = station_lng, y = station_lat),
+             bins = c(25,50)) +
+  scale_fill_viridis(option= 'turbo') +
+  labs(title = "Station density")
+```
 
+```{r mapping the dataset 13, echo=FALSE, message=FALSE}
+# What I'd like to do though is calculate a stat for each CALCULATED BIN.
+# Like, the program bins all the coordinates and I want a mean of
+# mean_duration for all observations in the bin. Right now the default
+# is just to count observations in the bin.
+boundaries_chi %>% ggplot() +
+  geom_sf() +
+  geom_hex(data = stations, aes(x = station_lng, y = station_lat), bins = c(18,24)) +
+  scale_fill_viridis(option= 'turbo') +
+  labs(title = "Station density")
+```
+```{r mapping the dataset 9, echo=FALSE, message=FALSE}
 # trip durations map -------------
 # individual stations - 'scatterplot'
 ggplot(boundaries_chi, aes()) +
@@ -721,13 +771,17 @@ ggplot(boundaries_chi, aes()) +
              mapping = aes(station_lng, station_lat, color = mean_duration)) +
   scale_color_viridis(option= 'plasma') +
   labs(title = 'Mean duration of trips started here')
+```
+```{r mapping the dataset 10, echo=FALSE, message=FALSE}
 # stations binned into sectors
 ggplot(boundaries_chi, aes()) +
   geom_sf() +
   geom_bin2d(data = stations_sectored, stat = 'identity',  bins=c(25,50),
              mapping = aes(start_lng_sector, start_lat_sector, fill = mean_duration)) +
-  scale_fill_viridis(option= 'plasma') +
+  scale_fill_viridis(option= 'turbo') +
   labs(title = 'Mean duration of trips started here')
+```
+```{r mapping the dataset 11, echo=FALSE, message=FALSE}
 # stations binned into sectors & mean_duration log-transformed
 ggplot(boundaries_chi, aes()) +
   geom_sf() +
@@ -742,28 +796,11 @@ ggplot(boundaries_chi, aes()) +
              mapping = aes(end_lng_sector, 
                            end_lat_sector, 
                            fill = log_mean_duration)) +
-  scale_fill_viridis(option= 'plasma') +
+  scale_fill_viridis(option= 'turbo') +
   labs(title = 'Mean duration of trips ended here (log-transformed duration)')
+```
 
-# Station density map again, simpler?
-# Does the counts (rides starting in a bin) quite nicely.
-boundaries_chi %>% ggplot() +
-  geom_sf() +
-  geom_bin2d(data = stations, aes(x = station_lng, y = station_lat),
-             bins = c(25,50)) +
-  scale_fill_viridis(option= 'turbo') +
-  labs(title = "Station density")
-
-# What I'd like to do though is calculate a stat for each CALCULATED BIN.
-# Like, the program bins all the coordinates and I want a mean of
-# mean_duration for all observations in the bin. Right now the default
-# is just to count observations in the bin.
-boundaries_chi %>% ggplot() +
-  geom_sf() +
-  geom_hex(data = stations, aes(x = station_lng, y = station_lat), bins = c(18,24)) +
-  scale_fill_viridis(option= 'turbo') +
-  labs(title = "Station density")
-
+```{r mapping the dataset 14, echo=FALSE, message=FALSE}
 # Sorting the data by p_trips_casual controls the order that dots are plotted
 # in the map in the next code block. This is important because of overplotting.
 # When stations are plotted in this order, the last stations to be plotted
@@ -794,16 +831,40 @@ boundaries_chi %>% ggplot() +
   geom_sf() +
   geom_point(data = stations_users, 
              mapping = aes(x = station_lng, y = station_lat,
-                           color = p_trips_casual > .75)) +
+                           color = p_trips_casual > .7)) +
   # scale_color_viridis(option = "jet", discrete = TRUE) +
   scale_color_discrete(type=c("deepskyblue4", "red")) +
   # scale_color_brewer(palette = "Set1", direction = -1) +
   guides(color = guide_legend(reverse = TRUE)) +  # reverse legend order, TRUE first
-  labs(title = "Casual use hot spots",
-       subtitle = "Stations over 75% casual use",
-       color = "Over 75% casual use")
+  labs(title = "All stations over 70% casual use",
+       color = "Over 70% casual use")
 ```
+```{r mapping the dataset 15, echo=FALSE, message=FALSE}
+# Map the BUSY casual hot spots: stations over 75% casual use and > 5000 trips
+NRIDES = 1000
+PCASUAL = 0.7
+stations_users <- stations %>% 
+  filter(n_trips > NRIDES) %>% 
+  group_by(start_station_id) %>%
+  mutate(p_trips_casual = n_trips / sum(n_trips),
+         n_trips_station = sum(n_trips)) %>% 
+  filter(member_casual == "casual",
+         p_trips_casual > PCASUAL) %>% 
+  rename(n_trips_casual = n_trips) %>% 
+  arrange(p_trips_casual)
 
+boundaries_chi %>% ggplot() +
+  geom_sf() +
+  geom_point(data = stations_users, 
+             mapping = aes(x = station_lng, y = station_lat, size = n_trips_station),
+             color = "red", alpha = 0.8) +
+  guides(color = guide_legend(reverse = TRUE)) +  # reverse legend order, TRUE first
+  labs(title = "Casual use hot spots",
+       subtitle = paste("Stations over ", NRIDES, " rides and ", PCASUAL * 100, "% casual use", sep = ""),
+       size = "Number of trips") +
+  ylim(c(41.77, 42.06)) 
+  xlim(c(-87.8, -87.6))
+```
 ## Average rider motion by hour
 Here we'll examine the overall traffic flow: as the hours go by, do riders tend
 to ride in a particular direction?  **Yes!** Overall it
