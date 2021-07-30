@@ -31,18 +31,13 @@ df <- fread(
 # put the factors in convenient order now, else we'll have to do this
 # every time we make a plot using the weekday.
 df <- df %>%
-  mutate(weekday = fct_relevel(
-    weekday,
-    c(
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-      "Sunday"
-    )
-  ))
+  mutate(
+    weekday = fct_relevel(weekday,
+                          c("Monday", "Tuesday", "Wednesday", "Thursday", 
+                            "Friday", "Saturday", "Sunday")),
+    month = fct_relevel(month, 
+                        c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", 
+                          "Aug", "Sep", "Oct", "Nov", "Dec")))
 
 # Chicago neighbourhood boundaries as Simple Features. We only need
 # the geometry for mapping, all the attributes can be discarded.
@@ -57,24 +52,13 @@ boundaries_chi <- boundaries_chi %>%
 ```{r descriptive statistics, echo=FALSE}
 # number of rides, by membership + weekday
 df %>% 
-  group_by(member_casual, weekday) %>% 
+  group_by(weekday, member_casual) %>% 
   summarise(n_rides = n())
 
 # trip minutes by membership
 df %>% 
   group_by(member_casual) %>% 
   summarise(across(trip_minutes, c(min=min, max=max, mean=mean, median=median, sd=sd)))
-
-# trip minutes by membership + weekday
-df %>% 
-  group_by(member_casual, weekday) %>% 
-  summarise(across(trip_minutes, c(min=min, max=max, mean=mean, median=median, sd=sd))) %>% 
-  ggplot(aes(weekday, trip_minutes_mean, fill = member_casual)) +
-  geom_col(position = "dodge") +
-  labs(title = "Average Length of Trip over the week",
-       x = NULL, y = "Minutes",
-       caption = "Source: Divvy public data") +
-  theme(legend.title = element_blank())
 ```
 
 
@@ -97,9 +81,46 @@ df %>%
             vjust = 2.1,
             size = 5) +
   theme(axis.text.x = element_text(size = x.txt.size),
+        legend.position = "none")
+```
+
+On weekends however, casual use approximately doubles and exceeds member use. 
+
+```{r who rides most often 2, echo=FALSE, message=FALSE, fig.width=7}
+df %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes(x = weekday, y = n, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "Total number of rides on each day of the week",
+       subtitle = paste("Since", lubridate::month(min(df$started_at), label = TRUE),
+                        year(min(df$started_at))),
+       x = NULL, y = "Rides",
+       caption = "Source: Divvy public data") +
+  theme(axis.text.x = element_text(),
         legend.title = element_blank())
 ```
 
+Breaking down the number of rides by month, we can see that while the season
+is important for all riders, casual users are much less willing to ride in
+the winter months. December to February, the system sees very little casual use.
+
+```{r who rides most often 3, echo=FALSE, message=FALSE, fig.width=7}
+df %>% 
+  filter(started_at >= "2020-07-01") %>% 
+  group_by(member_casual, month) %>% 
+  summarise(n = n()) %>% 
+  ggplot(aes(x = month, y = n, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = scales::comma) +
+  labs(title = "Total number of rides each month",
+       subtitle = "Since July 2020",
+       x = NULL, y = "Rides",
+       caption = "Source: Divvy public data") +
+  theme(axis.text.x = element_text(),
+        legend.title = element_blank())
+```
 
 ## How do they differ on type of bike ridden?
 Casuals are more likely to choose a docked bike and less likely to choose a
@@ -128,36 +149,78 @@ This is a bit surprising - the average trip is about the same distance for
 both classes of users.  For this analysis we've removed trips that start and end 
 at the same station since we have no indication how long the trip was.
 
-```{r}
+```{r avg trip distance}
 df %>% 
   filter(is_round_trip == 'a to b') %>% 
   group_by(member_casual) %>% 
-  summarise(mean_trip_distance = mean(trip_distance_m)) %>% 
+  summarise(mean_trip_distance = mean(trip_distance_m) / 1000) %>% 
   ggplot(aes(member_casual, mean_trip_distance, fill = member_casual)) +
   geom_col() +
   labs(title = "Average trip distance (Km)",
        subtitle = "Straight-line distance, 'as the crow flies'",
        caption = "Source: Divvy public data",
        x = NULL, y = "Kilometers") +
-  geom_text(aes(label = round(mean_trip_distance / 1000, digits = 1)), 
+  geom_text(aes(label = round(mean_trip_distance, digits = 1)), 
             vjust = 2.1,
             size = 5) +
   theme(legend.position = "none",
         axis.text.x = element_text(size = x.txt.size))
 ```
+Not much difference by weekday.
 
+```{r avg trip distance 2}
+df %>% 
+  filter(is_round_trip == 'a to b') %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(mean_trip_distance = mean(trip_distance_m) / 1000) %>% 
+  ggplot(aes(weekday, mean_trip_distance, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  labs(title = "Average trip distance (Km)",
+       subtitle = "Straight-line distance, 'as the crow flies'",
+       caption = "Source: Divvy public data",
+       x = NULL, y = "Kilometers") 
+```
 
-## How much time is spent on an average ride?
-Casuals ride more than twice as long as members, on average.
+```{r avg trip distance 3}
+df %>% 
+  filter(is_round_trip == 'a to b') %>% 
+  group_by(member_casual, month) %>% 
+  summarise(mean_trip_distance = mean(trip_distance_m) / 1000) %>% 
+  ggplot(aes(month, mean_trip_distance, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  labs(title = "Average trip distance (Km)",
+       subtitle = "Straight-line distance, 'as the crow flies'",
+       caption = "Source: Divvy public data",
+       x = NULL, y = "Kilometers") 
+```
 
-```{r mean ride length, echo=FALSE}
-#knitr::kable(
+For this analysis we've 
+removed trips that start and end 
+at the same station since they have an apparent distance of zero. We believe
+it's likely that pleasure cruises make up a large portion of these rides. We'll
+examine this idea in a section further below.
+
+```{r}
+df %>% 
+  filter(is_round_trip == 'round trip') %>% 
+  group_by(member_casual) %>% 
+  summarise("Possible pleasure cruises" = n(),
+            "Avg trip minutes" = round(mean(trip_minutes), 0)) %>% 
+  rename("Rider Type" = member_casual)
+```
+
+## How much *time* is spent on an average ride?
+Casuals ride more than twice as long as members, on average.  There isn't
+much variation in ride duration over the week other than a slight increase
+over the weekend.
+
+```{r mean ride duration, echo=FALSE}
 df %>% 
   group_by(member_casual) %>% 
   summarise(mean_ride_length = mean(trip_minutes)) %>% 
   ggplot(aes(member_casual, mean_ride_length, fill = member_casual)) +
   geom_col() +
-  labs(title = "Average ride length (minutes)",
+  labs(title = "Average ride duration (minutes)",
        x = NULL, y = "Minutes",
        caption = "Source: Divvy public data") +
   geom_text(aes(label = round(mean_ride_length, digits = 1)), 
@@ -165,6 +228,70 @@ df %>%
             size = 5) +
   theme(legend.position = "none",
         axis.text.x = element_text(size = x.txt.size))
+```
+
+Seasonally, casual rides have a large amount of variation. The small number of
+winter trips taken tend to be short - half the length of rides at the peak of summer.
+
+```{r mean ride duration 2, echo=FALSE}
+df %>% 
+  group_by(member_casual, month) %>% 
+  summarise(mean_ride_length = mean(trip_minutes)) %>% 
+  ggplot(aes(month, mean_ride_length, fill = member_casual)) +
+  geom_col() +
+  labs(title = "Average ride duration (minutes)",
+       x = NULL, y = "Minutes",
+       caption = "Source: Divvy public data") +
+  geom_text(aes(label = round(mean_ride_length, digits = 0)), 
+            vjust = 2.1,
+            size = 4) +
+  theme(legend.position = "none",
+        axis.text.x = element_text(size = x.txt.size))
+```
+
+## Pleasure cruises?
+
+Earlier we noted the possibility of about 10% of rides being round-trip
+pleasure cruises, starting and ending at the same station, likely near the
+rider's home. The two graphs below provide evidence for this idea.
+
+If our hypothesis is correct, the percentage of this type of ride should shrink
+in winter and grow in summer and be mostly confined to casual users.  This
+first graph shows exactly this pattern.
+
+```{r pleasure cruises}
+df %>% 
+  group_by(month, member_casual, is_round_trip) %>% 
+  summarise(n = n()) %>% 
+  mutate(percent_of_rides = n / sum(n) * 100) %>% 
+  filter(is_round_trip == "round trip") %>%
+  ggplot(aes(x = month, y = percent_of_rides, fill = member_casual)) +
+  geom_col() +
+  facet_wrap(~member_casual, ncol = 2) +
+  labs(title = "Pleasure cruises over the seasons",
+       subtitle = "Percentage of all trips starting and ending at the same station",
+       caption = "Source: Divvy public data",
+       x = NULL, y = "Percent of all trips") +
+  theme(legend.position = "none")
+```
+
+Second, if our idea is correct we should also see trip duration becoming longer
+in winter and shorter in summer. This should strongly affect casual users but
+have little effect on members, who have a 45-minute time limit.  This graph
+demonstrates this pattern as well.
+
+```{r pleasure cruises 2}
+df %>% 
+  group_by(month, member_casual, is_round_trip) %>% 
+  summarise(avg_ride_minutes = mean(trip_minutes)) %>% 
+  filter(is_round_trip == "round trip") %>%
+  ggplot(aes(x = month, y = avg_ride_minutes, fill = member_casual)) +
+  geom_col() +
+  facet_wrap(~member_casual, ncol = 2) +
+  labs(title = "Duration of pleasure cruises over the seasons",
+       caption = "Source: Divvy public data",
+       x = NULL, y = "Minutes") +
+  theme(legend.position = "none")
 ```
 
 ## Ride speed
@@ -227,6 +354,11 @@ longer trips
 - The difference is amplified in the particularly long trips
   - compare the 95th percentile trip time. 5% of casuals take trips longer
   than 1:50!
+
+**NB: Divvy's policies (starting in 2018) limit members to 45 minutes on the
+bike at one time (up from 30 minutes.)  This artificial limit is almost
+certainly the cause of these observations. Anyone, members included, who wish
+a long cruise have to purchase a day pass.**
   
 ```{r trip length details, echo=FALSE, message=FALSE}
 df %>% 
@@ -807,7 +939,7 @@ dow_vec %>%
     axis.ticks = element_blank(),
     panel.background = element_blank()
   ) +
-  geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
+  geom_segment(size = 1, arrow = arrow(length = unit(0.1, "npc"))) +
   facet_wrap( ~ hour) +
   labs(title = "Rush hour traffic direction and strength",
        subtitle = "Evening rush hour: 4 - 6pm",
@@ -837,10 +969,6 @@ ggplot(monthly_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(month))) +
 
 ## TODO
 
-- ADD FEATURE: Calculate mean straight-line **distance** of trips started and ended in each
-sector.
-  - is it better to do straight line, or horizontal + vert distances
-    ("manhattan distance") and add them?
 - Bike Motion maps: calculate total "bike miles" moved in a certain direction
   to make the abstract arrows more concrete.
 - visualize timelapse behaviour
