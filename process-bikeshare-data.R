@@ -46,13 +46,17 @@ df <-
 #'  - Blank station information: we need to know where trips start and end.
 #'  - Huge or tiny trip times: are these bikes stolen, lost, or broken, then brought
 #'    back into service?  Did someone undock a bike, then change their mind?
+#'    Is it some sort of internal system test?
 #'    Whatever the cause, these outliers are irrelevant for casual vs member
 #'    analysis.
 #'     - We filter out any trips longer than 24 hours or shorter than 1 minute
+#'  - impossible speeds: remove any trips with an estimated speed over 70kph.
+#'  This represents fewer than 20 trips at time of writing.
 #'
 #' ## New variables added:
 #'
-#'  - `weekday` (1-7, starts Monday)
+#'  - `weekday`: by the start of the ride (1-7, starts Monday)
+#'  - `month`: Abbreviated, by the start of the ride
 #'  - Four `sector` variables: a rectangular area on the map. Created by
 #'  rounding longitude & latitude to two decimal points.
 #'    - Interpreted as a geographical **area** or "bin" where a trip starts
@@ -67,7 +71,12 @@ df <-
 #'    and pleasure cruises.
 #'  - `trip_distance_m`: straight-line distance (meters) from start to finish.
 #'  This is a proxy for the actual trip path as ridden, which is not available
-#'  in the dataset. It will always be smaller than reality.
+#'  in the dataset. It will always be smaller than reality. Round trips have
+#'  a distance of 0 by this measure. Unavoidable, as GPS tracks showing the
+#'  true route taken are not available.
+#'  - `trip_kph`: Estimate of overall trip speed. Since `trip_distance_m` is an
+#'  underestimate, this speed is faster than reality. However, it will be
+#'  useful as a *relative comparison* between groups.
 
 #+ message=FALSE
 df <- df %>%
@@ -77,6 +86,7 @@ df <- df %>%
                      levels = 1:7,
                      labels = c("Monday", "Tuesday", "Wednesday",
                                 "Thursday", "Friday", "Saturday", "Sunday")),
+    month = factor(lubridate::month(started_at, abbr = TRUE, label = TRUE)),
     start_lng_sector = round(start_lng, digits = 2),
     start_lat_sector = round(start_lat, digits = 2),
     end_lng_sector = round(end_lng, digits = 2),
@@ -101,11 +111,13 @@ df <- df %>%
   # rowwise. This is unfortunately slow. distCosine() is accurate to about 0.5%
   # and is the fastest distance measure.  This is accurate enough and
   # takes ~5min on my laptop.
+  # Also create trip_kph now that we have the trip distance and remove a
+  # small number (<10) of weird trips where people rode at inhuman speeds.
   rowwise() %>%
-  mutate(trip_distance_m = geosphere::distm(
-    x = c(start_lng, start_lat),
-    y = c(end_lng, end_lat),
-    fun = distCosine
-  )[1, 1])  # returns a 1x1 matrix
-
+  mutate(trip_distance_m =
+           geosphere::distm(x = c(start_lng, start_lat),
+                            y = c(end_lng, end_lat),
+                            fun = distCosine)[1, 1], # returns a 1x1 matrix
+         trip_kph = trip_distance_m / trip_minutes * 60 / 1000) %>%
+  filter(trip_kph < 70)
 fwrite(x = df, file = "./data/alldata.csv.gz")

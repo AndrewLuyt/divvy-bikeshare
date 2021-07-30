@@ -176,7 +176,7 @@ pre code {
 <h2>Purpose</h2>
 <p>Transform the numerous raw .csv files into a single, cleaned .csv with some extra features.</p>
 <p>Read <strong>all</strong> csv files available (except <code>alldata.csv.gz</code>) into a single dataframe, add features, then save complete dataset to <code>alldata.csv.gz</code>.</p>
-<p>If datasets which are too old to be relevant are included in the data directory, they will also be read. Only include files in the data directory which you wish to include in the analysis.</p>
+<p>Only include files in the data directory which you wish to include in the analysis. If datasets which are too old to be relevant are included in the data directory, they will also be read.</p>
 <pre class="r"><code>library(data.table)  # use fread for speed
 library(R.utils)     # allow fread to read/write .gz
 library(tidyverse)
@@ -200,16 +200,18 @@ df &lt;-
 <p>We drop rows to remove incomplete, probably-corrupt, or irrelevant data:</p>
 <ul>
 <li>Blank station information: we need to know where trips start and end.</li>
-<li>Huge or tiny trip times: are these bikes stolen, lost, or broken, then brought back into service? Did someone undock a bike, then change their mind? Some online research suggests all of these reasons, as well as Divvy taking bikes out of circulation for quality control reasons. Whatever the cause, these outliers are irrelevant for casual vs member analysis.
+<li>Huge or tiny trip times: are these bikes stolen, lost, or broken, then brought back into service? Did someone undock a bike, then change their mind? Is it some sort of internal system test? Whatever the cause, these outliers are irrelevant for casual vs member analysis.
 <ul>
 <li>We filter out any trips longer than 24 hours or shorter than 1 minute</li>
 </ul></li>
+<li>impossible speeds: remove any trips with an estimated speed over 70kph. This represents fewer than 20 trips at time of writing.</li>
 </ul>
 </div>
 <div id="new-variables-added" class="section level2">
 <h2>New variables added:</h2>
 <ul>
-<li><code>weekday</code> (1-7, starts Monday)</li>
+<li><code>weekday</code>: by the start of the ride (1-7, starts Monday)</li>
+<li><code>month</code>: Abbreviated, by the start of the ride</li>
 <li>Four <code>sector</code> variables: a rectangular area on the map. Created by rounding longitude &amp; latitude to two decimal points.
 <ul>
 <li>Interpreted as a geographical <strong>area</strong> or “bin” where a trip starts or ends, as opposed to a point. Meant as a convenient aggregating measure for later analysis.</li>
@@ -217,7 +219,8 @@ df &lt;-
 <li><code>trip_minutes</code>: Some trips are of negative duration and will be filtered out later. Online research suggests that some of this comes from Divvy taking bikes in and out of service for quality control reasons.</li>
 <li><code>trip_delta_</code>: the change in longitude and latitude over the trip.</li>
 <li><code>is_round_trip</code>: a boolean flag that shows if the trip started and ended at the same station. Meant to distinguish between commute-type trips and pleasure cruises.</li>
-<li><code>trip_distance_m</code>: straight-line distance (meters) from start to finish. This is a proxy for the actual trip path as ridden, which is not available in the dataset. It will always be smaller than reality.</li>
+<li><code>trip_distance_m</code>: straight-line distance (meters) from start to finish. This is a proxy for the actual trip path as ridden, which is not available in the dataset. It will always be smaller than reality. Round trips have a distance of 0 by this measure. Unavoidable, as GPS tracks showing the true route taken are not available.</li>
+<li><code>trip_kph</code>: Estimate of overall trip speed. Since <code>trip_distance_m</code> is an underestimate, this speed is faster than reality. However, it will be useful as a <em>relative comparison</em> between groups.</li>
 </ul>
 <pre class="r"><code>df &lt;- df %&gt;%
   mutate(
@@ -226,6 +229,7 @@ df &lt;-
                      levels = 1:7,
                      labels = c(&quot;Monday&quot;, &quot;Tuesday&quot;, &quot;Wednesday&quot;,
                                 &quot;Thursday&quot;, &quot;Friday&quot;, &quot;Saturday&quot;, &quot;Sunday&quot;)),
+    month = factor(lubridate::month(started_at, abbr = TRUE, label = TRUE)),
     start_lng_sector = round(start_lng, digits = 2),
     start_lat_sector = round(start_lat, digits = 2),
     end_lng_sector = round(end_lng, digits = 2),
@@ -250,13 +254,15 @@ df &lt;-
   # rowwise. This is unfortunately slow. distCosine() is accurate to about 0.5%
   # and is the fastest distance measure.  This is accurate enough and
   # takes ~5min on my laptop.
+  # Also create trip_kph now that we have the trip distance and remove a
+  # small number (&lt;10) of weird trips where people rode at inhuman speeds.
   rowwise() %&gt;%
-  mutate(trip_distance_m = geosphere::distm(
-    x = c(start_lng, start_lat),
-    y = c(end_lng, end_lat),
-    fun = distCosine
-  )[1, 1])  # returns a 1x1 matrix
-
+  mutate(trip_distance_m =
+           geosphere::distm(x = c(start_lng, start_lat),
+                            y = c(end_lng, end_lat),
+                            fun = distCosine)[1, 1], # returns a 1x1 matrix
+         trip_kph = trip_distance_m / trip_minutes * 60 / 1000) %&gt;%
+  filter(trip_kph &lt; 70)
 fwrite(x = df, file = &quot;./data/alldata.csv.gz&quot;)</code></pre>
 </div>
 
