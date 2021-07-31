@@ -26,6 +26,11 @@ library(tidyverse)
 library(lubridate)
 library(geosphere)   # calculate trip distances without creating sf objects
 
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
 #+ message=FALSE
 # Don't include trip_id (it's just a unique string ID) and dropping it
 # cuts memory significantly.
@@ -52,6 +57,9 @@ df <-
 #'     - We filter out any trips longer than 24 hours or shorter than 1 minute
 #'  - impossible speeds: remove any trips with an estimated speed over 70kph.
 #'  This represents fewer than 20 trips at time of writing.
+#'  - Station names can have multiple station IDs (did they get re-numbered?)
+#'  We collapse these into single IDs.
+#'    - Some station names are suffixed with " (*)".  This suffix is removed.
 #'
 #' ## New variables added:
 #'
@@ -94,7 +102,9 @@ df <- df %>%
     trip_delta_x = end_lng - start_lng,
     trip_delta_y = end_lat - start_lat,
     is_round_trip = if_else(start_station_id == end_station_id,
-                            'round trip', 'a to b')) %>%
+                            'round trip', 'a to b'),
+    start_station_name = str_replace(start_station_name, " \\(\\*\\)", ""),
+    end_station_name = str_replace(end_station_name, " \\(\\*\\)", "")) %>%
   filter(
     start_station_name != "",
     start_station_id != "",
@@ -119,5 +129,11 @@ df <- df %>%
                             y = c(end_lng, end_lat),
                             fun = distCosine)[1, 1], # returns a 1x1 matrix
          trip_kph = trip_distance_m / trip_minutes * 60 / 1000) %>%
-  filter(trip_kph < 70)
+  filter(trip_kph < 70) %>%
+  group_by(start_station_name) %>%
+  mutate(start_station_id = Mode(start_station_id)) %>%
+  ungroup() %>%
+  group_by(end_station_name) %>%
+  mutate(end_station_id = Mode(end_station_id)) %>%
+  ungroup()
 fwrite(x = df, file = "./data/alldata.csv.gz")
