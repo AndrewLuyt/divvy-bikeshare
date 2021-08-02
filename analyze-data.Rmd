@@ -17,6 +17,11 @@ library(sf)
 library(here)
 library(viridis)
 
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
 x.txt.size = 13  # scale the x axis ticks in many graphs
 
 DATA = here("data/alldata.csv.gz")
@@ -711,33 +716,31 @@ ggplot(boundaries_chi, aes()) +
   theme(panel.background = element_rect(fill = "white"), aspect.ratio = 42/25) +
   labs(title="Number of trips that ended here")
 ```
-```{r mapping the dataset 8, echo=FALSE, message=FALSE}
+```{r mapping the dataset 8, echo=FALSE, message=FALSE, warning=FALSE}
 # make a station density map
+# create some convenient tibbles for mapping.
+# Bike stations with location, trips, mean duration
 stations <- df %>% 
   group_by(start_station_id, member_casual) %>% 
-  summarise(station_lng = mean(start_lng), 
+  summarise(start_station_name = Mode(start_station_name),
+            station_lng = mean(start_lng),  # there is GPS error in coords
             station_lat = mean(start_lat),
             n_trips = n(),
-            mean_duration = mean(trip_minutes),
-            log_mean_duration  = log2(mean_duration)) %>% 
+            mean_duration = mean(trip_minutes)) %>% 
   filter(n_trips > 10)  # remove stations w/o enough data
+# RECTANGULAR SECTORS which bin bike stations inside them
 stations_sectored <- df %>% 
   group_by(start_lng_sector, start_lat_sector, member_casual) %>% 
   summarise(n_trips = n(),
-            mean_duration = mean(trip_minutes),
-            log_mean_duration = log2(mean_duration)) %>% 
+            mean_duration = mean(trip_minutes)) %>% 
   filter(n_trips > 10)
-stations_sectored_end <- df %>% 
-  group_by(end_lng_sector, end_lat_sector, member_casual) %>% 
-  summarise(n_trips = n(),
-            mean_duration = mean(trip_minutes),
-            log_mean_duration = log2(mean_duration)) %>% 
-  filter(n_trips > 10)
-
+```
+```{r mapping the dataset 8.5}
+# Let bin2d perform the binning and give us a heatmap
 ggplot(boundaries_chi, aes()) +
   geom_sf() +
   geom_bin2d(data = stations, mapping = aes(station_lng, station_lat), bins=c(25,50)) +
-  scale_fill_viridis(option= 'plasma') +
+  scale_fill_viridis(option= 'turbo') +
   labs(title = 'Station density')
 ```
 ```{r mapping the dataset 12, echo=FALSE, message=FALSE}
@@ -780,25 +783,16 @@ ggplot(boundaries_chi, aes()) +
              mapping = aes(start_lng_sector, start_lat_sector, fill = mean_duration)) +
   scale_fill_viridis(option= 'turbo') +
   labs(title = 'Mean duration of trips started here')
-```
-```{r mapping the dataset 11, echo=FALSE, message=FALSE}
-# stations binned into sectors & mean_duration log-transformed
+
+# stations binned into sectors: points don't overlap now
 ggplot(boundaries_chi, aes()) +
   geom_sf() +
-  geom_bin2d(data = stations_sectored, stat = 'identity',
-             mapping = aes(start_lng_sector, start_lat_sector, fill = log_mean_duration)) +
-  scale_fill_viridis(option= 'plasma') +
-  labs(title = 'Mean duration of trips started here (log-transformed duration)')
-# stations binned into sectors & mean_duration log-transformed - by ENDING station
-ggplot(boundaries_chi, aes()) +
-  geom_sf() +
-  geom_bin2d(data = stations_sectored_end, stat = 'identity',
-             mapping = aes(end_lng_sector, 
-                           end_lat_sector, 
-                           fill = log_mean_duration)) +
-  scale_fill_viridis(option= 'turbo') +
-  labs(title = 'Mean duration of trips ended here (log-transformed duration)')
+  geom_point(data = stations_sectored,
+             mapping = aes(start_lng_sector, start_lat_sector, col = mean_duration)) +
+  scale_color_viridis(option= 'turbo') +
+  labs(title = 'Mean duration of trips started here')
 ```
+
 
 ```{r mapping the dataset 14, echo=FALSE, message=FALSE}
 # Sorting the data by p_trips_casual controls the order that dots are plotted
@@ -822,26 +816,27 @@ boundaries_chi %>% ggplot() +
              mapping = aes(x = station_lng, y = station_lat,
                            color = p_trips_casual)) +
   scale_color_viridis(option = "turbo", labels = scales::percent) +
-  labs(title = "Who uses each station?",
-       subtitle = "Casual usage at each station",
+  labs(title = "Casual usage at each station",
        color = "Casual use\n")
 
 # Map the casual hot spots: stations over 75% casual use
 boundaries_chi %>% ggplot() +
   geom_sf() +
   geom_point(data = stations_users, 
-             mapping = aes(x = station_lng, y = station_lat,
+             mapping = aes(x = station_lng, y = station_lat, 
+                           size = n_trips_station,
                            color = p_trips_casual > .7)) +
+  scale_size_continuous(range = c(1, 8)) +
   # scale_color_viridis(option = "jet", discrete = TRUE) +
   scale_color_discrete(type=c("deepskyblue4", "red")) +
   # scale_color_brewer(palette = "Set1", direction = -1) +
   guides(color = guide_legend(reverse = TRUE)) +  # reverse legend order, TRUE first
-  labs(title = "All stations over 70% casual use",
+  labs(title = "Highlight stations over 70% casual use",
        color = "Over 70% casual use")
 ```
 ```{r mapping the dataset 15, echo=FALSE, message=FALSE}
 # Map the BUSY casual hot spots: stations over 75% casual use and > 5000 trips
-NRIDES = 1000
+NRIDES = 500
 PCASUAL = 0.7
 stations_users <- stations %>% 
   filter(n_trips > NRIDES) %>% 
@@ -856,15 +851,51 @@ stations_users <- stations %>%
 boundaries_chi %>% ggplot() +
   geom_sf() +
   geom_point(data = stations_users, 
-             mapping = aes(x = station_lng, y = station_lat, size = n_trips_station),
-             color = "red", alpha = 0.8) +
-  guides(color = guide_legend(reverse = TRUE)) +  # reverse legend order, TRUE first
+             mapping = aes(x = station_lng, y = station_lat,
+                           size = n_trips_station),
+             fill = 'red',
+             color = 'black',
+             shape = 21) +
+  scale_size_continuous(range = c(2.5, 8)) +
   labs(title = "Casual use hot spots",
        subtitle = paste("Stations over ", NRIDES, " rides and ", PCASUAL * 100, "% casual use", sep = ""),
        size = "Number of trips") +
-  ylim(c(41.77, 42.06)) 
-  xlim(c(-87.8, -87.6))
+  ylim(c(41.77, 42.01)) +
+  xlim(c(-87.8, -87.57))
 ```
+
+### Zoom in
+
+```{r mapping the dataset 16, echo=FALSE, message=FALSE}
+boundaries_chi %>% ggplot() +
+  geom_sf() +
+  geom_point(data = stations_users, 
+             mapping = aes(x = station_lng, y = station_lat,
+                           size = n_trips_station),
+             fill = 'red',
+             color = 'black',
+             shape = 21) +
+  scale_size_continuous(range = c(4, 10)) +
+  labs(title = "Casual use hot spots",
+       subtitle = paste("Stations over ", NRIDES, " rides and ", PCASUAL * 100, "% casual use", sep = ""),
+       size = "Number of trips") +
+  ylim(c(41.86, 41.90)) +
+  xlim(c(-87.67, -87.59))
+```
+
+### Which stations are these?
+
+These stations are all on and around the waterfront between Soldier Field and
+Navy Pier.
+
+```{r}
+stations_users %>% 
+  slice_max(n_trips_casual, n = 10) %>% 
+  arrange(desc(n_trips_casual)) %>% 
+  select(start_station_name, n_trips_casual, n_trips_station, p_trips_casual, station_lng, station_lat)
+```
+
+
 ## Average rider motion by hour
 Here we'll examine the overall traffic flow: as the hours go by, do riders tend
 to ride in a particular direction?  **Yes!** Overall it
@@ -1032,30 +1063,22 @@ ggplot(monthly_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(month))) +
 
 - Bike Motion maps: calculate total "bike miles" moved in a certain direction
   to make the abstract arrows more concrete.
+    - **A  grid of arrows like a direction field**: aggregate into rectangles like before, calculate
+    the averate motion per rect and create an arrow, and map all the arrows
+    at the center of the squares!
+      - This could be animated by the hour.... giving **a traffic flow like
+      a bed of seagrass flowing in the tide...**
 - visualize timelapse behaviour
   - trips starting from a sector, with scrubbable hour (tableau!)
     - or as an animation
   - and similarly, ending at a sector..
-  - Can you draw a map of LINES connecting start and end points for
+- Can you draw a map of LINES connecting start and end points for
     trips..?
-    - or similarly, for e.g. 4-4:59pm, a cloud of dots in two colours,
+  - or similarly, for e.g. 4-4:59pm, a cloud of dots in two colours,
       trips started and trips ended, at every location.
-- a map of all stations, coloured by the proportion of casual users who
-  start/end trips at this station.
-  - size the dots based on the popularity of the station (# of trips
-  starting/ending there)
-- find the fastest rides:
-  - use trip time and straight-line distance
-- is there a 'mean travel direction'?
-  - like, morning tends to go north, 5pm it switches?
-  - calculate by the hour and draw an arrow with direction and strength?
-    - seems like vectors would work... and we have all the components!
-      - start_lng, start_lat, end_lng, end_lat
-      - this is a vector with angle arctan(delta_y/delta_x) (Quadrant!) and
-        magnitude sqrt(delta_x^2 + delta_y^2)
-      - BETTER: just add up all the delta_x and delta_y componenets of every
-      trip in that hour and you end up with a vector pointing to the
-      overall (sum of) trip direction and distance.
+
+
+
 
 
 

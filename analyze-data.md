@@ -1,12 +1,55 @@
 Analyze: How do Casual Users and Annual Subscribers Differ?
 ================
 Andrew Luyt
+2021-07-27
+
+## Quick descriptive statistics
+
+    ## `summarise()` has grouped output by 'weekday'. You can override using the `.groups` argument.
+
+    ## # A tibble: 14 × 3
+    ## # Groups:   weekday [7]
+    ##    weekday   member_casual n_rides
+    ##    <fct>     <fct>           <int>
+    ##  1 Monday    casual         210438
+    ##  2 Monday    member         344378
+    ##  3 Tuesday   casual         205153
+    ##  4 Tuesday   member         372075
+    ##  5 Wednesday casual         214006
+    ##  6 Wednesday member         394318
+    ##  7 Thursday  casual         215632
+    ##  8 Thursday  member         375376
+    ##  9 Friday    casual         280867
+    ## 10 Friday    member         385044
+    ## 11 Saturday  casual         458682
+    ## 12 Saturday  member         399781
+    ## 13 Sunday    casual         381370
+    ## 14 Sunday    member         341135
+
+    ## # A tibble: 2 × 6
+    ##   member_casual trip_minutes_min trip_minutes_max trip_minutes_mean
+    ##   <fct>                    <dbl>            <dbl>             <dbl>
+    ## 1 casual                    1.02            1440.              35.7
+    ## 2 member                    1.02            1440.              15.4
+    ## # … with 2 more variables: trip_minutes_median <dbl>, trip_minutes_sd <dbl>
 
 ## Who rides most often?
 
 Members take the majority of rides.
 
 ![](analyze-data_files/figure-gfm/who%20rides%20most%20often-1.png)<!-- -->
+
+On weekends however, casual use approximately doubles and exceeds member
+use.
+
+![](analyze-data_files/figure-gfm/who%20rides%20most%20often%202-1.png)<!-- -->
+
+Breaking down the number of rides by month, we can see that while the
+season is important for all riders, casual users are much less willing
+to ride in the winter months. December to February, the system sees very
+little casual use.
+
+![](analyze-data_files/figure-gfm/who%20rides%20most%20often%203-1.png)<!-- -->
 
 ## How do they differ on type of bike ridden?
 
@@ -29,27 +72,145 @@ the trip was.
 df %>% 
   filter(is_round_trip == 'a to b') %>% 
   group_by(member_casual) %>% 
-  summarise(mean_trip_distance = mean(trip_distance_m)) %>% 
+  summarise(mean_trip_distance = mean(trip_distance_m) / 1000) %>% 
   ggplot(aes(member_casual, mean_trip_distance, fill = member_casual)) +
   geom_col() +
   labs(title = "Average trip distance (Km)",
-       subtitle = "Casuals vs Members",
-       caption  = 'Distance is straight-line, or "as the crow flies."',
+       subtitle = "Straight-line distance, 'as the crow flies'",
+       caption = "Source: Divvy public data",
        x = NULL, y = "Kilometers") +
-  geom_text(aes(label = round(mean_trip_distance / 1000, digits = 1)), 
+  geom_text(aes(label = round(mean_trip_distance, digits = 1)), 
             vjust = 2.1,
-            size = 6) +
+            size = 5) +
   theme(legend.position = "none",
         axis.text.x = element_text(size = x.txt.size))
 ```
 
-![](analyze-data_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+![](analyze-data_files/figure-gfm/avg%20trip%20distance-1.png)<!-- -->
+Not much difference by weekday.
 
-## How much time is spent on an average ride?
+``` r
+df %>% 
+  filter(is_round_trip == 'a to b') %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(mean_trip_distance = mean(trip_distance_m) / 1000) %>% 
+  ggplot(aes(weekday, mean_trip_distance, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  labs(title = "Average trip distance (Km)",
+       subtitle = "Straight-line distance, 'as the crow flies'",
+       caption = "Source: Divvy public data",
+       x = NULL, y = "Kilometers") 
+```
 
-Casuals ride more than twice as long as members, on average.
+    ## `summarise()` has grouped output by 'member_casual'. You can override using the `.groups` argument.
 
-![](analyze-data_files/figure-gfm/mean%20ride%20length-1.png)<!-- -->
+![](analyze-data_files/figure-gfm/avg%20trip%20distance%202-1.png)<!-- -->
+
+``` r
+df %>% 
+  filter(is_round_trip == 'a to b') %>% 
+  group_by(member_casual, month) %>% 
+  summarise(mean_trip_distance = mean(trip_distance_m) / 1000) %>% 
+  ggplot(aes(month, mean_trip_distance, fill = member_casual)) +
+  geom_col(position = "dodge") +
+  labs(title = "Average trip distance (Km)",
+       subtitle = "Straight-line distance, 'as the crow flies'",
+       caption = "Source: Divvy public data",
+       x = NULL, y = "Kilometers") 
+```
+
+    ## `summarise()` has grouped output by 'member_casual'. You can override using the `.groups` argument.
+
+![](analyze-data_files/figure-gfm/avg%20trip%20distance%203-1.png)<!-- -->
+
+For this analysis we’ve removed trips that start and end at the same
+station since they have an apparent distance of zero. We believe it’s
+likely that pleasure cruises make up a large portion of these rides.
+We’ll examine this idea in a section further below.
+
+``` r
+df %>% 
+  filter(is_round_trip == 'round trip') %>% 
+  group_by(member_casual) %>% 
+  summarise("Possible pleasure cruises" = n(),
+            "Avg trip minutes" = round(mean(trip_minutes), 0)) %>% 
+  rename("Rider Type" = member_casual)
+```
+
+    ## # A tibble: 2 × 3
+    ##   `Rider Type` `Possible pleasure cruises` `Avg trip minutes`
+    ##   <fct>                              <int>              <dbl>
+    ## 1 casual                            315156                 61
+    ## 2 member                            110279                 26
+
+## How much *time* is spent on an average ride?
+
+Casuals ride more than twice as long as members, on average. There isn’t
+much variation in ride duration over the week other than a slight
+increase over the weekend.
+
+![](analyze-data_files/figure-gfm/mean%20ride%20duration-1.png)<!-- -->
+
+Seasonally, casual rides have a large amount of variation. The small
+number of winter trips taken tend to be short - half the length of rides
+at the peak of summer.
+
+    ## `summarise()` has grouped output by 'member_casual'. You can override using the `.groups` argument.
+
+![](analyze-data_files/figure-gfm/mean%20ride%20duration%202-1.png)<!-- -->
+
+## Pleasure cruises?
+
+Earlier we noted the possibility of about 10% of rides being round-trip
+pleasure cruises, starting and ending at the same station, likely near
+the rider’s home. The two graphs below provide evidence for this idea.
+
+If our hypothesis is correct, the percentage of this type of ride should
+shrink in winter and grow in summer and be mostly confined to casual
+users. This first graph shows exactly this pattern.
+
+``` r
+df %>% 
+  group_by(month, member_casual, is_round_trip) %>% 
+  summarise(n = n()) %>% 
+  mutate(percent_of_rides = n / sum(n) * 100) %>% 
+  filter(is_round_trip == "round trip") %>%
+  ggplot(aes(x = month, y = percent_of_rides, fill = member_casual)) +
+  geom_col() +
+  facet_wrap(~member_casual, ncol = 2) +
+  labs(title = "Pleasure cruises over the seasons",
+       subtitle = "Percentage of all trips starting and ending at the same station",
+       caption = "Source: Divvy public data",
+       x = NULL, y = "Percent of all trips") +
+  theme(legend.position = "none")
+```
+
+    ## `summarise()` has grouped output by 'month', 'member_casual'. You can override using the `.groups` argument.
+
+![](analyze-data_files/figure-gfm/pleasure%20cruises-1.png)<!-- -->
+
+Second, if our idea is correct we should also see trip duration becoming
+longer in winter and shorter in summer. This should strongly affect
+casual users but have little effect on members, who have a 45-minute
+time limit. This graph demonstrates this pattern as well.
+
+``` r
+df %>% 
+  group_by(month, member_casual, is_round_trip) %>% 
+  summarise(avg_ride_minutes = mean(trip_minutes)) %>% 
+  filter(is_round_trip == "round trip") %>%
+  ggplot(aes(x = month, y = avg_ride_minutes, fill = member_casual)) +
+  geom_col() +
+  facet_wrap(~member_casual, ncol = 2) +
+  labs(title = "Duration of pleasure cruises over the seasons",
+       caption = "Source: Divvy public data",
+       x = NULL, y = "Minutes") +
+  theme(legend.position = "none")
+```
+
+    ## `summarise()` has grouped output by 'month', 'member_casual'. You can override using the `.groups` argument.
+
+![](analyze-data_files/figure-gfm/pleasure%20cruises%202-1.png)<!-- -->
 
 ## Ride speed
 
@@ -70,10 +231,11 @@ df %>%
   geom_col() +
   labs(title = "Mean trip speed (Kph)",
        subtitle = "Members ride about 30% faster",
-       x = NULL, y = "Kilometers per hour") +
+       x = NULL, y = "Kilometers per hour",
+       caption = "Source: Divvy public data") +
   geom_text(aes(label = round(mean_kph, digits = 1)), 
             vjust = 2.1,
-            size = 6) +
+            size = 5) +
   theme(legend.position = "none",
         axis.text.x = element_text(size = x.txt.size))
 ```
@@ -98,15 +260,18 @@ A quick examination shows a few notable items:
     -   compare the 95th percentile trip time. 5% of casuals take trips
         longer than 1:50!
 
-<!-- -->
+**NB: Divvy’s policies (starting in 2018) limit members to 45 minutes on
+the bike at one time (up from 30 minutes.) This artificial limit is
+almost certainly the cause of these observations. Anyone, members
+included, who wish a long cruise have to purchase a day pass.**
 
     ## # A tibble: 6 × 5
     ## # Groups:   member_casual [2]
     ##   member_casual  mean median quantiles     q
     ##   <fct>         <dbl>  <dbl>     <dbl> <dbl>
-    ## 1 casual         35.6   20.9     11.6   0.25
-    ## 2 casual         35.6   20.9     39.1   0.75
-    ## 3 casual         35.6   20.9    108.    0.95
+    ## 1 casual         35.7   20.9     11.6   0.25
+    ## 2 casual         35.7   20.9     39.1   0.75
+    ## 3 casual         35.7   20.9    108.    0.95
     ## 4 member         15.4   11.5      6.68  0.25
     ## 5 member         15.4   11.5     19.8   0.75
     ## 6 member         15.4   11.5     37.8   0.95
@@ -116,10 +281,9 @@ being short and a small number being over an hour. We will trim off the
 longest 5% of trips so we can see the typical pattern of ride length.
 
 **One observation is that casual riders make up almost all trips longer
-than 40 minutes!**
-
-**TODO: is there some limitation on ride length for members? The cutoff
-around 40 minutes looks quite sudden.**
+than 40 minutes.** Online research shows that in 2018, Divvy extended
+the maximum ride length for members to 45 minutes (up from 30). Longer
+rides incur a fee.
 
 One question to arise from this: what sort of bike is most comfortable
 for long trips, and which are better for short ones? Do members tend to
@@ -135,11 +299,12 @@ df %>%
   geom_histogram(bins = 40, alpha = 0.7) +
   scale_y_continuous(labels = scales::comma) +
   labs(title = "Ride durations",
-       x = "Minutes",
-       y = "Count of rides") +
-  annotate(geom = "text", x = 70, y = 200000, label = "Members rarely ride more than 40 minutes") +
-  annotate(geom = "curve", x = 50, y = 170000, xend = 40, yend = 9000, 
-           curvature = 0.1, arrow = arrow(length = unit(.02, "npc")))
+       x = "Minutes", y = "Count of rides",
+       caption = "Source: Divvy public data") +
+  annotate(geom = "text", x = 70, y = 200000, label = "Members pay a surcharge if\n riding more than 45 minutes") +
+  annotate(geom = "curve", x = 50, y = 160000, xend = 39, yend = 16000, 
+           curvature = 0.1, arrow = arrow(length = unit(.02, "npc"))) +
+  theme(legend.title = element_blank())
 ```
 
 ![](analyze-data_files/figure-gfm/trip%20duration%20histogram-1.png)<!-- -->
@@ -157,8 +322,9 @@ df %>%
   ggplot(aes(weekday, mean_ride_length, fill=member_casual)) +
   geom_col(position = position_dodge(width = 0.4), alpha = 0.8) + 
   labs(title = "Average Ride lengths over the week",
-       x = NULL, y = "Average minutes") +
-  theme(legend.position = "right", legend.title = element_blank() )
+       x = NULL, y = "Average minutes",
+       caption = "Source: Divvy public data") +
+  theme(legend.title = element_blank())
 ```
 
     ## `summarise()` has grouped output by 'weekday'. You can override using the `.groups` argument.
@@ -218,12 +384,56 @@ near-zero! The median station is 42% casual use.
 
 ![](analyze-data_files/figure-gfm/station%20use-1.png)<!-- -->
 
-## Order all stations by popularity, plot the proportion of members using it
+## Which stations do casuals use?
 
-We see a clear pattern. As stations get busier, the proportion of
-casuals rises. There is still a large amount of variability however.
+We’ll look at this question in two parts. **First** we’ll sort the
+stations by popularity (number of trips that start there) and colour the
+points by the proportion of the type of user. **Second** we will plot
+these stations on a map of Chicago.
 
-![](analyze-data_files/figure-gfm/station%20popularity%20scatter%20and%20fit-1.png)<!-- -->
+**First**: station popularity. We can extract three main insights from
+the graph below:
+
+-   Overall, most stations are used primarily by members
+-   The least popular stations are dominated by casual use
+-   A few of the city’s most popular stations are over 75% casual use
+    -   These might make excellent targets for any pilot programs
+        targeting casual users
+
+``` r
+df %>% 
+  group_by(start_station_id, member_casual) %>% 
+  summarise(n = n()) %>% 
+  mutate(total_trips = sum(n),
+         p_casual = n / total_trips,
+         mostly_casual = factor(p_casual > .5,
+                                levels = c(TRUE, FALSE),
+                                labels = c("Mostly casual", "Mostly members"))) %>% 
+  filter(member_casual == 'casual') %>% 
+  select(start_station_id, p_casual, total_trips, mostly_casual) %>% 
+  arrange(total_trips) %>% 
+  filter(total_trips > 100) %>% # remove nearly unused stations (some might be obsolete?)
+  ggplot(aes(total_trips, p_casual)) +
+  geom_point(aes(color = mostly_casual)) +
+  geom_smooth() +
+  scale_x_log10(breaks = NULL, name = "(-)     Station Popularity     (+)") +
+  scale_y_continuous(labels = scales::percent) +
+  annotate("text", x = 600, y = 0.95, 
+           label = "Least popular") +
+  annotate("text", x = 8000, y = 0.95, 
+           label = "Most popular") +
+  annotate("curve", x = 600, y = 0.9, xend = 140, yend=.8, curvature = -0.1,
+           arrow = arrow(length = unit(0.04, "npc"))) +
+  annotate("curve", x = 8000, y = 0.9, xend = 25000, yend=.75, curvature = 0.1,
+           arrow = arrow(length = unit(0.04, "npc"))) +
+  labs(title = "Station popularity and typical users",
+       subtitle = "The least and most popular stations are used casually",
+       y = "Casual use",
+       caption = "Source: Divvy public data") +
+  theme(legend.title = element_blank())
+```
+
+![](analyze-data_files/figure-gfm/station%20popularity%20and%20use-1.png)<!-- -->
 
 ## Plot stations on the map
 
@@ -243,11 +453,64 @@ ideas:
 
     ## Warning: Ignoring unknown parameters: bins
 
-![](analyze-data_files/figure-gfm/mapping%20the%20dataset-2.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset-3.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset-4.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset-5.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset-6.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset-7.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset-8.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset-9.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset-10.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset-11.png)<!-- -->
+![](analyze-data_files/figure-gfm/mapping%20the%20dataset%202-1.png)<!-- -->
+
+![](analyze-data_files/figure-gfm/mapping%20the%20dataset%203-1.png)<!-- -->
+![](analyze-data_files/figure-gfm/mapping%20the%20dataset%204-1.png)<!-- -->
+![](analyze-data_files/figure-gfm/mapping%20the%20dataset%205-1.png)<!-- -->
+
+![](analyze-data_files/figure-gfm/mapping%20the%20dataset%206-1.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset%206-2.png)<!-- -->
+![](analyze-data_files/figure-gfm/mapping%20the%20dataset%207-1.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset%207-2.png)<!-- -->
+![](analyze-data_files/figure-gfm/mapping%20the%20dataset%208-1.png)<!-- -->
+![](analyze-data_files/figure-gfm/mapping%20the%20dataset%2012-1.png)<!-- -->
+
+![](analyze-data_files/figure-gfm/mapping%20the%20dataset%2013-1.png)<!-- -->
+![](analyze-data_files/figure-gfm/mapping%20the%20dataset%209-1.png)<!-- -->
 
     ## Warning: Ignoring unknown parameters: bins
 
-![](analyze-data_files/figure-gfm/mapping%20the%20dataset-12.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset-13.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset-14.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset-15.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset-16.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset-17.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset-18.png)<!-- -->
+![](analyze-data_files/figure-gfm/mapping%20the%20dataset%2010-1.png)<!-- -->
+![](analyze-data_files/figure-gfm/mapping%20the%20dataset%2011-1.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset%2011-2.png)<!-- -->
+
+![](analyze-data_files/figure-gfm/mapping%20the%20dataset%2014-1.png)<!-- -->![](analyze-data_files/figure-gfm/mapping%20the%20dataset%2014-2.png)<!-- -->
+
+    ## Warning: Removed 2 rows containing missing values (geom_point).
+
+![](analyze-data_files/figure-gfm/mapping%20the%20dataset%2015-1.png)<!-- -->
+
+### Zoom in
+
+    ## Warning: Removed 18 rows containing missing values (geom_point).
+
+![](analyze-data_files/figure-gfm/mapping%20the%20dataset%2016-1.png)<!-- -->
+
+### Which stations are these?
+
+``` r
+stations_users %>% 
+  slice_max(n_trips_casual, n = 10) %>% 
+  arrange(desc(n_trips_casual)) %>% 
+  select(start_station_name, n_trips_casual, n_trips_station, p_trips_casual, station_lng, station_lat)
+```
+
+    ## Adding missing grouping variables: `start_station_id`
+
+    ## # A tibble: 26 × 7
+    ## # Groups:   start_station_id [26]
+    ##    start_station_id start_station_name        n_trips_casual n_trips_station
+    ##    <fct>            <fct>                              <int>           <int>
+    ##  1 35               Streeter Dr & Grand Ave            47106           60903
+    ##  2 76               Lake Shore Dr & Monroe St          32854           45142
+    ##  3 90               Millennium Park                    29735           36742
+    ##  4 3                Shedd Aquarium                     16636           22112
+    ##  5 2                Buckingham Fountain                15632           18812
+    ##  6 623              Michigan Ave & 8th St              14120           19543
+    ##  7 6                Dusable Harbor                     13300           18977
+    ##  8 13029            Field Museum                        4239            5648
+    ##  9 406              Lake Park Ave & 35th St             3602            5099
+    ## 10 200              MLK Jr Dr & 47th St                 1028            1028
+    ## # … with 16 more rows, and 3 more variables: p_trips_casual <dbl>,
+    ## #   station_lng <dbl>, station_lat <dbl>
 
 ## Average rider motion by hour
 
@@ -404,7 +667,7 @@ dow_vec %>%
     axis.ticks = element_blank(),
     panel.background = element_blank()
   ) +
-  geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
+  geom_segment(size = 1, arrow = arrow(length = unit(0.1, "npc"))) +
   facet_wrap( ~ hour) +
   labs(title = "Rush hour traffic direction and strength",
        subtitle = "Evening rush hour: 4 - 6pm",
@@ -439,10 +702,6 @@ ggplot(monthly_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(month))) +
 
 ## TODO
 
--   ADD FEATURE: Calculate mean straight-line **distance** of trips
-    started and ended in each sector.
-    -   is it better to do straight line, or horizontal + vert distances
-        (“manhattan distance”) and add them?
 -   Bike Motion maps: calculate total “bike miles” moved in a certain
     direction to make the abstract arrows more concrete.
 -   visualize timelapse behaviour
