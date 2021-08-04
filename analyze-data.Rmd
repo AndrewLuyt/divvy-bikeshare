@@ -158,7 +158,7 @@ at the same station since we have no indication how long the trip was.
 df %>% 
   filter(is_round_trip == 'a to b') %>% 
   group_by(member_casual) %>% 
-  summarise(mean_trip_distance = mean(trip_distance_m) / 1000) %>% 
+  summarise(mean_trip_distance = mean(trip_distance)) %>% 
   ggplot(aes(member_casual, mean_trip_distance, fill = member_casual)) +
   geom_col() +
   labs(title = "Average trip distance (Km)",
@@ -177,7 +177,7 @@ Not much difference by weekday.
 df %>% 
   filter(is_round_trip == 'a to b') %>% 
   group_by(member_casual, weekday) %>% 
-  summarise(mean_trip_distance = mean(trip_distance_m) / 1000) %>% 
+  summarise(mean_trip_distance = mean(trip_distance)) %>% 
   ggplot(aes(weekday, mean_trip_distance, fill = member_casual)) +
   geom_col(position = "dodge") +
   labs(title = "Average trip distance (Km)",
@@ -190,7 +190,7 @@ df %>%
 df %>% 
   filter(is_round_trip == 'a to b') %>% 
   group_by(member_casual, month) %>% 
-  summarise(mean_trip_distance = mean(trip_distance_m) / 1000) %>% 
+  summarise(mean_trip_distance = mean(trip_distance)) %>% 
   ggplot(aes(month, mean_trip_distance, fill = member_casual)) +
   geom_col(position = "dodge") +
   labs(title = "Average trip distance (Km)",
@@ -310,9 +310,8 @@ trip distance is 0.
 ```{r}
 df %>% 
   filter(is_round_trip == 'a to b') %>%
-  mutate(kph = (trip_distance_m / 1000) / (trip_minutes / 60)) %>% 
   group_by(member_casual) %>% 
-  summarise(mean_kph = mean(kph)) %>% 
+  summarise(mean_kph = mean(trip_kph)) %>% 
   ggplot(aes(member_casual, mean_kph, fill = member_casual)) +
   geom_col() +
   labs(title = "Mean trip speed (Kph)",
@@ -342,7 +341,7 @@ df %>% group_by(member_casual) %>%
        x = NULL,
        y = "Total Minutes",
        caption = "Source: Divvy public data") +
-  stat_summary(fun.y = sum, 
+  stat_summary(fun = sum, 
                geom="text", 
                aes(label=scales::comma(total_minutes)), vjust = 2, size=5) +
   theme(legend.position = "none", 
@@ -467,13 +466,12 @@ Yes, but only for casuals and not in winter.
 
 ```{r do weekends matter, message=FALSE, echo=FALSE}
 df %>% 
-  mutate(is_weekend = as_factor(weekday %in% c('Saturday', 'Sunday'))) %>% 
-  group_by(date(started_at), member_casual, is_weekend) %>% 
+  group_by(date(started_at), member_casual, weekend_weekday) %>% 
   summarise(n_rides = n()) %>% 
   rename(date = 1) %>% 
   ggplot(aes(x = date, y = n_rides)) +
   geom_point(alpha=0.2) +
-  geom_smooth(aes(color = is_weekend), se = FALSE, size = 2) + 
+  geom_smooth(aes(color = weekend_weekday), se = FALSE, size = 2) + 
   facet_wrap(~member_casual) +
   scale_color_brewer(palette="Set1") +
   labs(title = "Trip Volume: Weekend vs Weekday", 
@@ -904,10 +902,10 @@ northwest.
 
 ### TODO: make interpretable with distance
 This has connections with how Divvy may have to shuttle bikes around at night
-to ensure the busy stations have bikes
+to ensure the busy stations have bikes.
 
-- the average rider (and bike!) moves Xm west by northwest
-- overall, traffic moves Xm west by northwest
+- the average rider (and bike!) moves X Km west by northwest
+- overall, traffic moves X Km west by northwest
 
 ```{r create motion vectors}
 angle_from_x_axis <- function(y,x) {
@@ -921,47 +919,80 @@ angle_from_x_axis <- function(y,x) {
 }
 # trend over the entire dataset
 overall_vec <- df %>% 
+  group_by(member_casual) %>% 
   summarize(x = sum(trip_delta_x), 
             y = sum(trip_delta_y),
             mean_x = mean(trip_delta_x),
             mean_y = mean(trip_delta_y),
             magnitude = sqrt(x^2 + y^2),
-            angle = angle_from_x_axis(y,x),
-            atan = atan(y/x))
-# monthly trends
-monthly_vec <- df %>% 
-  group_by(month = lubridate::month(started_at),
-           hour = lubridate::hour(started_at)) %>% 
-  summarize(x = sum(trip_delta_x), 
-            y = sum(trip_delta_y),
-            mean_x = mean(trip_delta_x),
-            mean_y = mean(trip_delta_y),
-            magnitude = sqrt(x^2 + y^2),
-            angle = angle_from_x_axis(y,x),
-            atan = atan(y/x))
-# day-of-the-week plus hour trends
-dow_vec <- df %>% 
-  group_by(weekday,
-           hour = lubridate::hour(started_at)) %>% 
-  summarize(x = sum(trip_delta_x), 
-            y = sum(trip_delta_y),
-            mean_x = mean(trip_delta_x),
-            mean_y = mean(trip_delta_y),
-            magnitude = sqrt(x^2 + y^2),
-            angle = angle_from_x_axis(y,x),
-            atan = atan(y/x))
-# hourly trends
-vecs <- df %>% 
-  group_by(hour = lubridate::hour(started_at)) %>% 
-  summarize(x = sum(trip_delta_x), 
-            y = sum(trip_delta_y),
-            mean_x = mean(trip_delta_x),
-            mean_y = mean(trip_delta_y),
-            magnitude = sqrt(x^2 + y^2),
-            angle = angle_from_x_axis(y,x)) 
+            angle = angle_from_x_axis(y,x))
+overall_vec
 ```
 
-## Overall traffic flow by hour
+The overall trend is for trips to go northwest. The averaged traffic flow over
+the dataset represents about 200,000km of travel to the northwest.
+
+## Monthly variation
+```{r create motion vectors by month}
+# monthly trends
+month_vec <- df %>% 
+  group_by(member_casual,
+           month = lubridate::month(started_at, label = TRUE)) %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x))
+
+ggplot(month_vec, aes(x=0, y=0, xend=x, yend=y, color=member_casual)) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  theme_gray() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
+  facet_wrap(~month) +
+  labs(title = "Overall traffic direction and strength, by month")
+```
+
+The overall traffic flow for members and casuals is pretty similar. Over the 
+months only the volume has a large change. We'll have to break the data
+down further to gain more insight.
+
+## Weekday variation
+```{r create motion vectors weekday}
+# monthly trends
+weekday_vec <- df %>% 
+  group_by(member_casual, weekday) %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x))
+
+ggplot(weekday_vec, aes(x=0, y=0, xend=x, yend=y, color=member_casual)) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  theme_gray() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
+  facet_wrap(~weekday) +
+  labs(title = "Overall traffic direction and strength, by weekday")
+```
+
+Casuals show the biggest change from the "commuting" pattern on the weekend.
+Still, this is not very insightful. We'll continue to break down the traffic
+flow.
+
+## Hourly variation
+
 We compute an estimate of the overall flow of traffic (direction and distance) 
 for every trip taken each hour.  We see the strong signals for the morning
 and evening commutes, with the evening being larger.  This probably leads to
@@ -971,79 +1002,18 @@ northwest.
 *Technical note: This is done by adding the
 vectors of every trip up to compute the 'overall trip' during that hour*
 
-```{r traffic flow by hour}
-ggplot(vecs, aes(x=0, y=0, xend=x, yend=y)) +
-  geom_hline(yintercept = 0, color = 'gray80') +
-  geom_vline(xintercept = 0, color = 'gray80') +
-  facet_wrap(~hour, ncol = 6) +
-  theme_gray() +
-  theme(axis.text = element_blank(),
-        axis.title = element_blank(),
-        axis.ticks = element_blank(),
-        panel.background = element_blank()) +
-  geom_segment(arrow = arrow(length = unit(0.1, "npc")), color='blue') +
-  coord_fixed(ratio = 0.7) +
-  labs(title = "Overall traffic direction and strength, by hour")
-```
+```{r create motion vectors hourly}
+# monthly trends
+hourly_vec <- df %>% 
+  group_by(member_casual, hour = lubridate::hour(started_at)) %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x))
 
-## Traffic flow by hour and weekday
-Between 4pm and 6pm, notice the distinct difference in traffic flow on the
-weekend.
-
-```{r Traffic flow by hour and weekday}
-ggplot(dow_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(weekday))) +
-  geom_hline(yintercept = 0, color = 'gray80') +
-  geom_vline(xintercept = 0, color = 'gray80') +
-  theme_gray() +
-  theme(axis.text = element_blank(),
-        axis.title = element_blank(),
-        axis.ticks = element_blank(),
-        panel.background = element_blank()) +
-  geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
-  facet_wrap(~hour, ncol = 6) +
-  labs(title = "Overall traffic direction and strength, by hour and weekday",
-       caption = "Note the variation on different days between 4-6pm") +
-  scale_color_viridis(discrete = TRUE, option="turbo")
-```
-
-## Examining the evening rush hour traffic
-The rush hour traffic flow has two main patterns.
-
-- On **Monday to Friday**, evening rush hour traffic trends strongly to the northwest.
-- On **weekends** it trends west to southwest
-
-```{r Traffic flow by hour and weekday limited to rush hour}
-dow_vec %>%
-  filter(between(hour, 16, 18)) %>%
-  ggplot(aes(
-    x = 0,
-    y = 0,
-    xend = x,
-    yend = y,
-    color = as_factor(weekday)
-  )) +
-  geom_hline(yintercept = 0, color = 'gray80') +
-  geom_vline(xintercept = 0, color = 'gray80') +
-  theme_gray() +
-  theme(
-    axis.text = element_blank(),
-    axis.title = element_blank(),
-    axis.ticks = element_blank(),
-    panel.background = element_blank()
-  ) +
-  geom_segment(size = 1, arrow = arrow(length = unit(0.1, "npc"))) +
-  facet_wrap( ~ hour) +
-  labs(title = "Rush hour traffic direction and strength",
-       subtitle = "Evening rush hour: 4 - 6pm",
-       caption = "Weekends have their own distinct pattern") +
-  scale_color_viridis(discrete = TRUE, option = "turbo")
-```
-
-## Hourly traffic flow, with monthly patterns
-Not useful. Traffic flow doesn't notably vary by month, other than in magnitude.
-
-```{r traffic flow by hour and month}
-ggplot(monthly_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(month))) +
+ggplot(hourly_vec, aes(x=0, y=0, xend=x, yend=y, color=member_casual)) +
   geom_hline(yintercept = 0, color = 'gray80') +
   geom_vline(xintercept = 0, color = 'gray80') +
   theme_gray() +
@@ -1053,10 +1023,252 @@ ggplot(monthly_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(month))) +
         panel.background = element_blank()) +
   geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
   facet_wrap(~hour) +
-  labs(title = "Overall traffic direction and strength, by hour",
-       subtitle = "Colours denote months",
-       caption = "Little variation by month: the main effect is the hour")
+  labs(title = "Overall traffic direction and strength, by hour")
 ```
+
+That's interesting. Over 24 hours, the overall traffic flow rotates, grows, and
+shrinks a lot.  Between 6-8am we see the morning commute, and between 4-6pm there
+is a similar signal in the opposite direction for the evening commute. It appears
+the evening commute is larger.  It's also interesting to note that casual
+traffic is actually larger than member traffic between the hours of 11am and 1pm.
+
+Still, there isn't a large difference between casuals and members. Let's break
+it down further.
+
+
+
+
+Members and casuals seem to have different hourly patterns. It doesn't change
+much over the months.
+
+```{r create motion vectors month-weekday}
+# monthly trends
+month_weekday_vec <- df %>% 
+  group_by(member_casual,
+           month = lubridate::month(started_at, label = TRUE),
+           weekday) %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x))
+
+ggplot(month_weekday_vec, aes(x=0, y=0, xend=x, yend=y, color=member_casual)) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  theme_gray() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
+  facet_wrap(~month) +
+  labs(title = "Overall traffic direction and strength, by month and weekday")
+```
+
+Overall traffic flow is consistently to the northwest except in winter.
+There is also a large signal for what looks like one day in May for casual users. 
+Let's investigate.
+
+```{r}
+df %>% 
+  mutate(daynum = lubridate::day(started_at)) %>% 
+  filter(lubridate::month(started_at) == 5,
+         lubridate::year(started_at) == 2020) %>% 
+  group_by(member_casual, daynum) %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x)) %>% 
+  ggplot(aes(x=0, y=0, xend=x, yend=y, color=member_casual)) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  theme_gray() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
+  facet_wrap(~daynum) +
+  labs(title = "Overall traffic direction and strength in May, by day")
+```
+
+There is a huge signal on May 30, 2020 and near-zero activity the following day.
+
+```{r}
+df %>% 
+  mutate(hour = lubridate::hour(started_at)) %>% 
+  filter(lubridate::month(started_at) == 5,
+         lubridate::day(started_at) == 30,
+         lubridate::year(started_at) == 2020) %>% 
+  group_by(member_casual, hour) %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x)) %>% 
+  ggplot(aes(x=0, y=0, xend=x, yend=y, color=member_casual)) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  theme_gray() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  geom_segment(arrow = arrow(length = unit(0.1, "npc"))) +
+  facet_wrap(~hour) +
+  labs(title = "Overall traffic direction and strength on May 30, 2020, by hour")
+```
+
+Most of the activity starts after 3pm. Searching the internet, we find that 
+May 30 2020 was the date
+of a massive *Black Lives Matter* protest in Chicago. It appears that many people used
+the bikes to get to and from the protests.  The following day under guidance
+from the city, Divvy shut down the bike share service at 4pm.
+
+[Reference:](https://chicago.cbslocal.com/2020/05/31/divvy-bikes-to-close-system-at-4-p-m-amid-unrest-in-chicago/)
+
+## Hourly and daily patterns
+Let's examine the difference in overall traffic flow over each hour in a week,
+and compare members vs casual users.
+
+```{r create motion vectors day-of-week-hour}
+# day-of-the-week plus hour trends
+dow_hour_vec <- df %>% 
+  group_by(member_casual,
+           weekday,
+           hour = lubridate::hour(started_at)) %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x))
+
+ggplot(dow_hour_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(hour))) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  theme_gray() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  geom_segment(arrow = arrow(length = unit(0.02, "npc"))) +
+  facet_wrap(~member_casual) +
+  labs(title = "Overall traffic direction and strength",
+       subtitle = "Each arrow is one hour on a particular day") +
+  scale_color_viridis(discrete = TRUE, option="turbo")
+```
+
+We see the members commuting signal very strongly here.  Casual users also
+have patterns visible:
+
+- On the weekends there seems to be traffic flowing northeast and west at
+different times of the day.
+- During the week there is a weak signal that corresponds with the typical
+commuting directions.
+
+Let's break this down further and split the trips into weekends vs weekdays.
+
+```{r create motion vectors weekday-hour}
+# day-of-the-week plus hour and weekend flag
+wewd_hour_vec <- df %>% 
+  group_by(member_casual,
+           weekend_weekday,
+           weekday,
+           hour = lubridate::hour(started_at)) %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x))
+
+ggplot(wewd_hour_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(hour))) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  theme_gray() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  geom_segment(arrow = arrow(length = unit(0.02, "npc"))) +
+  facet_grid(cols = vars(member_casual),
+             rows = vars(weekend_weekday)) +
+  labs(title = "Overall traffic direction and strength",
+       subtitle = "Each arrow is one hour on a particular day") +
+  scale_color_viridis(discrete = TRUE, option="turbo")
+```
+
+Things become clearer. During the week, casual traffic follows the same pattern
+as members, suggesting that many of these trips are actually for commuting.
+
+Let's examine casual traffic flow only.
+
+```{r create motion vectors casual weekend-weekday}
+# hourly trends for weekday vs weekend
+weekend_hour_vecs <- df %>% 
+  group_by(member_casual,
+           weekend_weekday,
+           hour = lubridate::hour(started_at)) %>% 
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            mean_x = mean(trip_delta_x),
+            mean_y = mean(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2),
+            angle = angle_from_x_axis(y,x)) 
+
+weekend_hour_vecs %>% 
+  filter(member_casual == 'casual') %>% 
+  ggplot(aes(x=0, y=0, xend=x, yend=y, color=as_factor(hour))) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  theme_gray() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  geom_segment(arrow = arrow(length = unit(0.02, "npc")), size=1) +
+  facet_wrap(~weekend_weekday) +
+  labs(title = "Casual traffic flow: weekday vs weekend",
+       subtitle = "Each arrow is one hour of traffic") +
+  scale_color_viridis(discrete = TRUE, option="turbo")
+```
+
+We see the commuting pattern during the week, as expected. 
+On the weekend however, many casual trips are taken in the morning to
+early afternoon, traveling
+northeast.  In the afternoon the overall casual traffic flow swings to
+the west. Recalling our map of casual hot spots earlier, we suggest that a
+majority of casual users are taking trips to the waterfront, spending some time there,
+and then returning home.
+
+
+## Traffic flow: members vs casuals
+Let's examine many of these patterns all at once, in context so we can
+compare them to each other.
+
+```{r Traffic flow by hour and weekday faceted 2}
+ggplot(dow_hour_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(hour))) +
+  geom_hline(yintercept = 0, color = 'gray80') +
+  geom_vline(xintercept = 0, color = 'gray80') +
+  theme_gray() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_blank()) +
+  geom_segment(arrow = arrow(length = unit(0.02, "npc"))) +
+  facet_grid(rows = vars(member_casual),
+             cols = vars(weekday)) +
+  labs(title = "Traffic flow over the week: member vs casual") +
+  scale_color_viridis(discrete = TRUE, option="turbo")
+```
+
+
 
 
 ## TODO
@@ -1076,6 +1288,8 @@ ggplot(monthly_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(month))) +
     trips..?
   - or similarly, for e.g. 4-4:59pm, a cloud of dots in two colours,
       trips started and trips ended, at every location.
+- What were the busiest casual days? Holidays? Sports events?
+  - Where was the traffic starting and ending?
 
 
 

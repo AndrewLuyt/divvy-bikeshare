@@ -133,7 +133,7 @@ both classes of users, two and a half kilometers.
 df %>% 
   filter(is_round_trip == 'a to b') %>% 
   group_by(member_casual) %>% 
-  summarise(mean_trip_distance = mean(trip_distance_m) / 1000) %>% 
+  summarise(mean_trip_distance = mean(trip_distance)) %>% 
   ggplot(aes(member_casual, mean_trip_distance, fill = member_casual)) +
   geom_col() +
   labs(title = "Average trip distance (Km)",
@@ -284,7 +284,7 @@ spend less time on the bikes. The graph below shows that members are about
 ```{r echo=FALSE}
 df %>% 
   filter(is_round_trip == 'a to b') %>%  # round trips have a distance of 0
-  mutate(kph = (trip_distance_m / 1000) / (trip_minutes / 60)) %>% 
+  mutate(kph = trip_distance / (trip_minutes / 60)) %>% 
   group_by(member_casual) %>% 
   summarise(mean_kph = mean(kph)) %>% 
   ggplot(aes(member_casual, mean_kph, fill = member_casual)) +
