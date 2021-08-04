@@ -89,9 +89,9 @@ df <-
 #'  useful as a *relative comparison* between groups.
 
 #+ message=FALSE
-df2 <-  df %>% slice_head(n = 1000)  # for testing
+# df2 <-  df %>% slice_head(n = 1000)  # for testing
 
-df2 <- df2 %>%
+df <- df %>%
   mutate(
     trip_minutes = as.numeric(difftime(ended_at, started_at, units = "mins")),
     weekday = factor(lubridate::wday(started_at, week_start = 1),
@@ -120,37 +120,17 @@ df2 <- df2 %>%
     trip_minutes < 1440,
     trip_minutes > 1
   ) %>%
-  # geosphere prefers to work with matrices. Doing this rowwise() would lose
-  # the advantages of vectorization.
+  # distGeo prefers to work with matrices of the form lng1 lat1, lng2 lat2,
+  # and we have those four columns, which we can cbind together.
   mutate(
-    trip_distance = geosphere::distCosine(cbind(start_lng, start_lat), cbind(end_lng, end_lat)) / 1000,
-    trip_delta_x = geosphere::distCosine(cbind(start_lng, start_lat), cbind(end_lng, start_lat)) / 1000,
-    trip_delta_y = geosphere::distCosine(cbind(start_lng, start_lat), cbind(start_lng, end_lat)) / 1000) %>%
-  # Create the trip distance feature. geosphere::distm isn't vectorized, so do it
-  # rowwise. This is unfortunately slow. distCosine() is accurate to about 0.5%
-  # and is the fastest distance measure.  This is accurate enough and
-  # takes ~20 min on my laptop.
-  # Also create trip_kph now that we have the trip distance and remove a
-  # small number (<10) of weird trips where people rode at inhuman speeds.
-  # rowwise() %>%
-  # mutate(trip_delta_x =
-  #          geosphere::distm(x = c(start_lng, start_lat),
-  #                           y = c(end_lng, start_lat),
-  #                           fun = distCosine)[1, 1], # returns a 1x1 matrix
-  #        trip_delta_y =
-  #          geosphere::distm(x = c(start_lng, start_lat),
-  #                           y = c(start_lng, end_lat),
-  #                           fun = distCosine)[1, 1],
-  #        trip_distance =
-  #          geosphere::distm(x = c(start_lng, start_lat),
-  #                           y = c(end_lng, end_lat),
-  #                           fun = distCosine)[1, 1]) %>%
-  # ungroup() %>% # go back to vectorized calculations
-  mutate(trip_delta_x =
-           if_else(end_lng > start_lng, trip_delta_x, (-1) * trip_delta_x),   # east positive, west negative
-         trip_delta_y =
-           if_else(end_lat > start_lat, trip_delta_y, (-1) * trip_delta_y),    # north positive, south negative
-         trip_kph = trip_distance / trip_minutes * 60) %>%
+    trip_distance = geosphere::distGeo(cbind(start_lng, start_lat), cbind(end_lng, end_lat)) / 1000,
+    trip_delta_x = geosphere::distGeo(cbind(start_lng, start_lat), cbind(end_lng, start_lat)) / 1000,
+    trip_delta_y = geosphere::distGeo(cbind(start_lng, start_lat), cbind(start_lng, end_lat)) / 1000,
+    trip_delta_x =  # east positive, west negative
+      if_else(end_lng > start_lng, trip_delta_x, (-1) * trip_delta_x),
+    trip_delta_y =  # north positive, south negative
+      if_else(end_lat > start_lat, trip_delta_y, (-1) * trip_delta_y),
+    trip_kph = trip_distance / trip_minutes * 60) %>%
   filter(trip_kph < 70) %>%
   group_by(start_station_name) %>%
   mutate(start_station_id = Mode(start_station_id)) %>%
@@ -158,4 +138,5 @@ df2 <- df2 %>%
   group_by(end_station_name) %>%
   mutate(end_station_id = Mode(end_station_id)) %>%
   ungroup()
-# fwrite(x = df, file = "./data/alldata.csv.gz")
+
+fwrite(x = df, file = "./data/alldata.csv.gz")
