@@ -64,6 +64,7 @@ df <-
 #' ## New variables added:
 #'
 #'  - `weekday`: by the start of the ride (1-7, starts Monday)
+#'  - `weekend_weekday`: Convenience variable to help visualize weekend patterns
 #'  - `month`: Abbreviated, by the start of the ride
 #'  - Four `sector` variables: a rectangular area on the map. Created by
 #'  rounding longitude & latitude to two decimal points.
@@ -73,34 +74,36 @@ df <-
 #'  - `trip_minutes`: Some trips are of negative duration and will be filtered
 #'  out later. Online research suggests that some of this comes from Divvy taking
 #'  bikes in and out of service for quality control reasons.
-#'  - `trip_delta_`: the change in longitude and latitude over the trip.
+#'  - `trip_delta_`: horizontal/vertical components of a trip (km). East and north
+#'  are positive values, west and south are negative.
 #'  - `is_round_trip`: a boolean flag that shows if the trip started and ended
 #'    at the same station.  Meant to distinguish between commute-type trips
 #'    and pleasure cruises.
-#'  - `trip_distance_m`: straight-line distance (meters) from start to finish.
+#'  - `trip_distance`: straight-line distance (km) from start to finish.
 #'  This is a proxy for the actual trip path as ridden, which is not available
 #'  in the dataset. It will always be smaller than reality. Round trips have
 #'  a distance of 0 by this measure. Unavoidable, as GPS tracks showing the
 #'  true route taken are not available.
-#'  - `trip_kph`: Estimate of overall trip speed. Since `trip_distance_m` is an
+#'  - `trip_kph`: Estimate of overall trip speed. Since `trip_distance` is an
 #'  underestimate, this speed is faster than reality. However, it will be
 #'  useful as a *relative comparison* between groups.
 
 #+ message=FALSE
-df <- df %>%
+df2 <-  df %>% slice_head(n = 1000)  # for testing
+
+df2 <- df2 %>%
   mutate(
     trip_minutes = as.numeric(difftime(ended_at, started_at, units = "mins")),
     weekday = factor(lubridate::wday(started_at, week_start = 1),
                      levels = 1:7,
                      labels = c("Monday", "Tuesday", "Wednesday",
                                 "Thursday", "Friday", "Saturday", "Sunday")),
+    weekend_weekday = if_else(weekday %in% c("Saturday", "Sunday"), "weekend", "weekday"),
     month = factor(lubridate::month(started_at, abbr = TRUE, label = TRUE)),
     start_lng_sector = round(start_lng, digits = 2),
     start_lat_sector = round(start_lat, digits = 2),
     end_lng_sector = round(end_lng, digits = 2),
     end_lat_sector = round(end_lat, digits = 2),
-    trip_delta_x = end_lng - start_lng,
-    trip_delta_y = end_lat - start_lat,
     is_round_trip = if_else(start_station_id == end_station_id,
                             'round trip', 'a to b'),
     start_station_name = str_replace(start_station_name, " \\(\\*\\)", ""),
@@ -117,18 +120,37 @@ df <- df %>%
     trip_minutes < 1440,
     trip_minutes > 1
   ) %>%
+  # geosphere prefers to work with matrices. Doing this rowwise() would lose
+  # the advantages of vectorization.
+  mutate(
+    trip_distance = geosphere::distCosine(cbind(start_lng, start_lat), cbind(end_lng, end_lat)) / 1000,
+    trip_delta_x = geosphere::distCosine(cbind(start_lng, start_lat), cbind(end_lng, start_lat)) / 1000,
+    trip_delta_y = geosphere::distCosine(cbind(start_lng, start_lat), cbind(start_lng, end_lat)) / 1000) %>%
   # Create the trip distance feature. geosphere::distm isn't vectorized, so do it
   # rowwise. This is unfortunately slow. distCosine() is accurate to about 0.5%
   # and is the fastest distance measure.  This is accurate enough and
-  # takes ~5min on my laptop.
+  # takes ~20 min on my laptop.
   # Also create trip_kph now that we have the trip distance and remove a
   # small number (<10) of weird trips where people rode at inhuman speeds.
-  rowwise() %>%
-  mutate(trip_distance_m =
-           geosphere::distm(x = c(start_lng, start_lat),
-                            y = c(end_lng, end_lat),
-                            fun = distCosine)[1, 1], # returns a 1x1 matrix
-         trip_kph = trip_distance_m / trip_minutes * 60 / 1000) %>%
+  # rowwise() %>%
+  # mutate(trip_delta_x =
+  #          geosphere::distm(x = c(start_lng, start_lat),
+  #                           y = c(end_lng, start_lat),
+  #                           fun = distCosine)[1, 1], # returns a 1x1 matrix
+  #        trip_delta_y =
+  #          geosphere::distm(x = c(start_lng, start_lat),
+  #                           y = c(start_lng, end_lat),
+  #                           fun = distCosine)[1, 1],
+  #        trip_distance =
+  #          geosphere::distm(x = c(start_lng, start_lat),
+  #                           y = c(end_lng, end_lat),
+  #                           fun = distCosine)[1, 1]) %>%
+  # ungroup() %>% # go back to vectorized calculations
+  mutate(trip_delta_x =
+           if_else(end_lng > start_lng, trip_delta_x, (-1) * trip_delta_x),   # east positive, west negative
+         trip_delta_y =
+           if_else(end_lat > start_lat, trip_delta_y, (-1) * trip_delta_y),    # north positive, south negative
+         trip_kph = trip_distance / trip_minutes * 60) %>%
   filter(trip_kph < 70) %>%
   group_by(start_station_name) %>%
   mutate(start_station_id = Mode(start_station_id)) %>%
@@ -136,4 +158,4 @@ df <- df %>%
   group_by(end_station_name) %>%
   mutate(end_station_id = Mode(end_station_id)) %>%
   ungroup()
-fwrite(x = df, file = "./data/alldata.csv.gz")
+# fwrite(x = df, file = "./data/alldata.csv.gz")
