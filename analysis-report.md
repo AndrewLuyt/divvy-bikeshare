@@ -141,7 +141,7 @@ We can extract three main insights from the  graph below:
 1. Overall, most stations are used primarily by members
 1. The least popular stations are dominated by casual use
 1. A few of the city's most popular stations are over 75% casual use
-  - These might make excellent targets for any pilot programs targeting casual
+  1. These might make excellent targets for any pilot programs targeting casual
   users
 
 ![](analysis-report_files/figure-html/station popularity and use-1.png)<!-- -->
@@ -184,9 +184,78 @@ Navy Pier.
 |6                |Dusable Harbor            |          13300|           18977|      0.7008484|   -87.61281|    41.88697|
 |13029            |Field Museum              |           4239|            5648|      0.7505312|   -87.61789|    41.86531|
 
-## Traffic Flow
+
+
+
+## Traffic Flow: Hourly and daily patterns
 In our last piece of analysis we will examine the overall traffic flow for
-patterns exhibited by casual users.
+patterns
+
+We calculate the overall traffic flow in the bike system. Each arrow represents
+overall motion of all the bikes during a one-hour period.  An arrow pointing
+northwest means that during that hour, bikes tend to be moving in that direction.
+We'll use this to examine the difference in overall traffic flow over each hour 
+in a week, comparing members vs casual users.
+
+*Technical note: to calculate this metric, each trip is treated as a vector.
+All vectors in a particular hour are added end-to-end and the final vector
+is treated as the overall traffic flow.*
+
+![](analysis-report_files/figure-html/create motion vectors day-of-week-hour-1.png)<!-- -->
+
+Let's look at the members first. The blue-green arrows pointing southeast
+show a strong trend in the morning hours for members to ride in that
+direction. Recalling the early-morning spike in member traffic, these
+arrows represent the morning rush hour.  The orange-red arrows pointing
+northwest represent the evening commute.  The pattern for members is
+very strong: the overall traffic flow is dominated by commuters and flows
+diagonally across the city in two distinct periods.
+
+For casual users the signal is weaker, showing that casual riders tend
+to ride to more varied destinations.  Still, there is a clear distinction
+shown by the colours: morning traffic trends east and afternoon & evening
+traffic trends west.
+
+Let's break this down further and split the trips into weekends vs weekdays.
+
+![](analysis-report_files/figure-html/create motion vectors weekday-hour-1.png)<!-- -->
+
+Things become clearer. During the week, casual traffic follows the same pattern
+as members, suggesting that many of these trips are actually for commuting.
+
+Next, let's examine casual traffic flow only.
+
+![](analysis-report_files/figure-html/create motion vectors casual weekend-weekday-1.png)<!-- -->
+
+We see the commuting pattern during the weekdays, traveling mostly along
+the northwest-southeast diagonal. 
+On the weekend however, things are more interesting. Many casual trips are taken 
+in the morning to early afternoon, traveling
+northeast.  In the afternoon the traffic flow swings to
+the west. Recalling our map of casual hot spots earlier, we suggest that a
+majority of casual users are taking trips to the waterfront, spending some time there,
+and then returning home.
+
+As one last view, let's examine these patterns over a typical week.
+
+![](analysis-report_files/figure-html/Traffic flow by hour and weekday faceted 2-1.png)<!-- -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

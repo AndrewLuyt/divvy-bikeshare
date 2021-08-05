@@ -1132,16 +1132,18 @@ from the city, Divvy shut down the bike share service at 4pm.
 
 [Reference:](https://chicago.cbslocal.com/2020/05/31/divvy-bikes-to-close-system-at-4-p-m-amid-unrest-in-chicago/)
 
-## Hourly and daily patterns
-Let's examine the difference in overall traffic flow over each hour in a week,
-and compare members vs casual users.
+## Traffic Flow: Hourly and daily patterns
+Here we calculate the overall traffic flow in the bike system. Each arrow
+represents the sum, or overall effect, of all trips taken during a one-hour period.  
+We'll use this to examine the difference in overall traffic flow over each hour 
+in a week, comparing members vs casual users.
 
-```{r create motion vectors day-of-week-hour}
+```{r create motion vectors day-of-week-hour, echo=FALSE}
 # day-of-the-week plus hour trends
 dow_hour_vec <- df %>% 
   group_by(member_casual,
            weekday,
-           hour = lubridate::hour(started_at)) %>% 
+           hour = as_factor(lubridate::hour(started_at))) %>% 
   summarize(x = sum(trip_delta_x), 
             y = sum(trip_delta_y),
             mean_x = mean(trip_delta_x),
@@ -1149,7 +1151,7 @@ dow_hour_vec <- df %>%
             magnitude = sqrt(x^2 + y^2),
             angle = angle_from_x_axis(y,x))
 
-ggplot(dow_hour_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(hour))) +
+ggplot(dow_hour_vec, aes(x=0, y=0, xend=x, yend=y, color=hour)) +
   geom_hline(yintercept = 0, color = 'gray80') +
   geom_vline(xintercept = 0, color = 'gray80') +
   theme_gray() +
@@ -1157,30 +1159,34 @@ ggplot(dow_hour_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(hour))) +
         axis.title = element_blank(),
         axis.ticks = element_blank(),
         panel.background = element_blank()) +
-  geom_segment(arrow = arrow(length = unit(0.02, "npc"))) +
+  geom_segment(arrow = arrow(length = unit(0.02, "npc")),  size=.8) +
   facet_wrap(~member_casual) +
   labs(title = "Overall traffic direction and strength",
        subtitle = "Each arrow is one hour on a particular day") +
   scale_color_viridis(discrete = TRUE, option="turbo")
 ```
 
-We see the members commuting signal very strongly here.  Casual users also
-have patterns visible:
+Let's look at the members first. The blue-green arrows pointing southeast
+show a strong trend in the morning hours for members to ride in that
+direction. Recalling the early-morning spike in member traffic, these
+arrows represent the morning rush hour.  The orange-red arrows pointing
+northwest represent the evening commute.  The pattern for members is
+very strong: the overall traffic flow is dominated by commuters.
 
-- On the weekends there seems to be traffic flowing northeast and west at
-different times of the day.
-- During the week there is a weak signal that corresponds with the typical
-commuting directions.
+For casual users the signal is weaker, showing that casual riders tend
+to ride to more varied destinations.  Still, there is a clear distinction
+shown by the colours: morning traffic trends east and afternoon & evening
+traffic trends west.
 
 Let's break this down further and split the trips into weekends vs weekdays.
 
-```{r create motion vectors weekday-hour}
+```{r create motion vectors weekday-hour, echo=FALSE, fig.asp=.7, fig.height=8}
 # day-of-the-week plus hour and weekend flag
 wewd_hour_vec <- df %>% 
   group_by(member_casual,
            weekend_weekday,
            weekday,
-           hour = lubridate::hour(started_at)) %>% 
+           hour = as_factor(lubridate::hour(started_at))) %>% 
   summarize(x = sum(trip_delta_x), 
             y = sum(trip_delta_y),
             mean_x = mean(trip_delta_x),
@@ -1188,7 +1194,7 @@ wewd_hour_vec <- df %>%
             magnitude = sqrt(x^2 + y^2),
             angle = angle_from_x_axis(y,x))
 
-ggplot(wewd_hour_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(hour))) +
+ggplot(wewd_hour_vec, aes(x=0, y=0, xend=x, yend=y, color=hour)) +
   geom_hline(yintercept = 0, color = 'gray80') +
   geom_vline(xintercept = 0, color = 'gray80') +
   theme_gray() +
@@ -1207,14 +1213,14 @@ ggplot(wewd_hour_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(hour))) +
 Things become clearer. During the week, casual traffic follows the same pattern
 as members, suggesting that many of these trips are actually for commuting.
 
-Let's examine casual traffic flow only.
+Next, let's examine casual traffic flow only.
 
 ```{r create motion vectors casual weekend-weekday}
 # hourly trends for weekday vs weekend
 weekend_hour_vecs <- df %>% 
   group_by(member_casual,
            weekend_weekday,
-           hour = lubridate::hour(started_at)) %>% 
+           hour = as_factor(lubridate::hour(started_at))) %>% 
   summarize(x = sum(trip_delta_x), 
             y = sum(trip_delta_y),
             mean_x = mean(trip_delta_x),
@@ -1224,7 +1230,7 @@ weekend_hour_vecs <- df %>%
 
 weekend_hour_vecs %>% 
   filter(member_casual == 'casual') %>% 
-  ggplot(aes(x=0, y=0, xend=x, yend=y, color=as_factor(hour))) +
+  ggplot(aes(x=0, y=0, xend=x, yend=y, color=hour)) +
   geom_hline(yintercept = 0, color = 'gray80') +
   geom_vline(xintercept = 0, color = 'gray80') +
   theme_gray() +
@@ -1239,21 +1245,19 @@ weekend_hour_vecs %>%
   scale_color_viridis(discrete = TRUE, option="turbo")
 ```
 
-We see the commuting pattern during the week, as expected. 
-On the weekend however, many casual trips are taken in the morning to
-early afternoon, traveling
-northeast.  In the afternoon the overall casual traffic flow swings to
+We see the commuting pattern during the weekdays, traveling mostly along
+the northwest-southeast diagonal. 
+On the weekend however, things are more interesting. Many casual trips are taken 
+in the morning to early afternoon, traveling
+northeast.  In the afternoon the traffic flow swings to
 the west. Recalling our map of casual hot spots earlier, we suggest that a
 majority of casual users are taking trips to the waterfront, spending some time there,
 and then returning home.
 
-
-## Traffic flow: members vs casuals
-Let's examine many of these patterns all at once, in context so we can
-compare them to each other.
+As one last view, let's examine these patterns over a typical week.
 
 ```{r Traffic flow by hour and weekday faceted 2}
-ggplot(dow_hour_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(hour))) +
+ggplot(dow_hour_vec, aes(x=0, y=0, xend=x, yend=y, color=hour)) +
   geom_hline(yintercept = 0, color = 'gray80') +
   geom_vline(xintercept = 0, color = 'gray80') +
   theme_gray() +
@@ -1261,7 +1265,7 @@ ggplot(dow_hour_vec, aes(x=0, y=0, xend=x, yend=y, color=as_factor(hour))) +
         axis.title = element_blank(),
         axis.ticks = element_blank(),
         panel.background = element_blank()) +
-  geom_segment(arrow = arrow(length = unit(0.02, "npc"))) +
+  geom_segment(arrow = arrow(length = unit(0.02, "npc")), size=0.9) +
   facet_grid(rows = vars(member_casual),
              cols = vars(weekday)) +
   labs(title = "Traffic flow over the week: member vs casual") +
