@@ -16,6 +16,7 @@ library(data.table)
 library(sf)
 library(here)
 library(viridis)
+library(ggrepel)
 
 Mode <- function(x) {
   ux <- unique(x)
@@ -764,7 +765,7 @@ boundaries_chi %>% ggplot() +
   labs(title = "Station density")
 ```
 ```{r mapping the dataset 9, echo=FALSE, message=FALSE}
-# trip durations map -------------
+# trip durations map
 # individual stations - 'scatterplot'
 ggplot(boundaries_chi, aes()) +
   geom_sf() +
@@ -782,13 +783,13 @@ ggplot(boundaries_chi, aes()) +
   scale_fill_viridis(option= 'turbo') +
   labs(title = 'Mean duration of trips started here')
 
-# stations binned into sectors: points don't overlap now
-ggplot(boundaries_chi, aes()) +
-  geom_sf() +
-  geom_point(data = stations_sectored,
-             mapping = aes(start_lng_sector, start_lat_sector, col = mean_duration)) +
-  scale_color_viridis(option= 'turbo') +
-  labs(title = 'Mean duration of trips started here')
+# ggplot(boundaries_chi, aes()) +
+#   geom_sf() +
+#   geom_point(data = stations_sectored,
+#              mapping = aes(start_lng_sector, start_lat_sector, col = mean_duration),
+#              size=2) +
+#   scale_color_viridis(option= 'turbo') +
+#   labs(title = 'Mean duration of trips started here')
 ```
 
 
@@ -863,35 +864,41 @@ boundaries_chi %>% ggplot() +
 ```
 
 ### Zoom in
+These stations are all on and around the waterfront between Soldier Field and
+Navy Pier. They represent what is easily the most popular casual use desination
+and usage pattern anywhere in the city.
 
 ```{r mapping the dataset 16, echo=FALSE, message=FALSE}
+
+# Get the top 10 busiest casual stations.
+top10 <- stations_users %>% 
+  ungroup() %>% 
+  slice_max(n_trips_casual, n = 10) %>% 
+  arrange(desc(station_lat)) %>% 
+  select(start_station_name, station_lng, station_lat, n_trips_casual)
+
 boundaries_chi %>% ggplot() +
   geom_sf() +
   geom_point(data = stations_users, 
              mapping = aes(x = station_lng, y = station_lat,
-                           size = n_trips_station),
+                           size = n_trips_casual),
              fill = 'red',
              color = 'black',
              shape = 21) +
+  geom_label_repel(data = top10, 
+            mapping = aes(x = station_lng, y = station_lat, label = start_station_name),
+            nudge_x = -0.005,
+            box.padding = .5) +
   scale_size_continuous(range = c(4, 10)) +
-  labs(title = "Casual use hot spots",
-       subtitle = paste("Stations over ", NRIDES, " rides and ", PCASUAL * 100, "% casual use", sep = ""),
+  labs(title = "Casual use hot spots on the waterfront",
+       subtitle = "The most popular casual use destinations in Chicago",
        size = "Number of trips") +
+  theme_bw() +
+  theme(axis.title = element_blank(), axis.text = element_blank(), axis.ticks = element_blank()) +
   ylim(c(41.86, 41.90)) +
   xlim(c(-87.67, -87.59))
 ```
 
-### Which stations are these?
-
-These stations are all on and around the waterfront between Soldier Field and
-Navy Pier.
-
-```{r}
-stations_users %>% 
-  slice_max(n_trips_casual, n = 10) %>% 
-  arrange(desc(n_trips_casual)) %>% 
-  select(start_station_name, n_trips_casual, n_trips_station, p_trips_casual, station_lng, station_lat)
-```
 
 
 ## Average rider motion by hour
