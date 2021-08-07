@@ -3,8 +3,10 @@ data
 tasks.Rmd
 tasks.md
 # ignore graphs until we're finished
-analyze-data_files
-img
+analyze-data_files/
+analysis-report_files/
+img/*.gif
+img/*.mp4
 
 # github's R.gitignore #################################
 # History files
