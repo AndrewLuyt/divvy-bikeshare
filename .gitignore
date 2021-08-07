@@ -4,6 +4,7 @@ tasks.Rmd
 tasks.md
 # ignore graphs until we're finished
 analyze-data_files
+img
 
 # github's R.gitignore #################################
 # History files
