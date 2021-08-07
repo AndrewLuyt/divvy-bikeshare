@@ -11,6 +11,8 @@ output:
 
 
 
+
+
 ## Executive Summary
 Comparing casual users with members we find a few notable differences.
 
@@ -113,12 +115,12 @@ We've seen that casuals and members ride about the same distances, but members
 spend less time on the bikes. The graph below shows that members are about
 30% faster on average.
 
-![](analysis-report_files/figure-html/unnamed-chunk-1-1.png)<!-- -->
+![](analysis-report_files/figure-html/mean trip speed-1.png)<!-- -->
 
 We now know that members ride more often and casuals ride longer: who rides the 
 most total minutes?  Casual users do!
 
-![](analysis-report_files/figure-html/unnamed-chunk-2-1.png)<!-- -->
+![](analysis-report_files/figure-html/saddle time-1.png)<!-- -->
 
 Since casual users spend so much more time in the saddle, it might be a
 worthwhile experiment to trial a set of more comfortable, relaxed-ride bikes
@@ -158,34 +160,18 @@ be red, and we'll also give busier stations larger dots.
 
 ![](analysis-report_files/figure-html/casual usage map over 70-1.png)<!-- -->
 
-Finally let's zoom in on notable hot spot near Navy Pier.  Of all stations with
-over 70% casual use, these are the eight busiest.
+Finally let's zoom in on the notable hot spot near Navy Pier.  Of all stations with
+over 70% casual use, these are the busiest.
 
 
 
-## TODO: annotate map with what stations these are
 
 ![](analysis-report_files/figure-html/mapping the dataset 16-1.png)<!-- -->
 
-#### Which stations are these?
-
-These stations are all around the waterfront between Soldier Field and
-Navy Pier.
-
-
-|start_station_id |start_station_name        | n_trips_casual| n_trips_station| p_trips_casual| station_lng| station_lat|
-|:----------------|:-------------------------|--------------:|---------------:|--------------:|-----------:|-----------:|
-|35               |Streeter Dr & Grand Ave   |          47106|           60903|      0.7734594|   -87.61205|    41.89228|
-|76               |Lake Shore Dr & Monroe St |          32854|           45142|      0.7277923|   -87.61674|    41.88097|
-|90               |Millennium Park           |          29735|           36742|      0.8092918|   -87.62408|    41.88104|
-|3                |Shedd Aquarium            |          16636|           22112|      0.7523517|   -87.61536|    41.86723|
-|2                |Buckingham Fountain       |          15632|           18812|      0.8309590|   -87.62053|    41.87650|
-|623              |Michigan Ave & 8th St     |          14120|           19543|      0.7225093|   -87.62398|    41.87275|
-|6                |Dusable Harbor            |          13300|           18977|      0.7008484|   -87.61281|    41.88697|
-|13029            |Field Museum              |           4239|            5648|      0.7505312|   -87.61789|    41.86531|
-
-
-
+These stations are all on and around the waterfront between Soldier Field and
+Navy Pier. They represent what is easily the most popular casual use desination
+anywhere in the city, demonstrating a consistent pattern of activity by casual
+users of the system.
 
 ## Traffic Flow: Hourly and daily patterns
 In our last piece of analysis we will examine the overall traffic flow for
@@ -203,7 +189,8 @@ is treated as the overall traffic flow.*
 
 ![](analysis-report_files/figure-html/create motion vectors day-of-week-hour-1.png)<!-- -->
 
-Let's look at the members first. The blue-green arrows pointing southeast
+Let's look at the members first, and the strong diagonal feature.
+The blue-green arrows pointing southeast
 show a strong trend in the morning hours for members to ride in that
 direction. Recalling the early-morning spike in member traffic, these
 arrows represent the morning rush hour.  The orange-red arrows pointing
@@ -220,7 +207,7 @@ Let's break this down further and split the trips into weekends vs weekdays.
 
 ![](analysis-report_files/figure-html/create motion vectors weekday-hour-1.png)<!-- -->
 
-Things become clearer. During the week, casual traffic follows the same pattern
+Things become clearer. During the week, casual traffic follows a similar pattern
 as members, suggesting that many of these trips are actually for commuting.
 
 Next, let's examine casual traffic flow only.
@@ -234,17 +221,30 @@ in the morning to early afternoon, traveling
 northeast.  In the afternoon the traffic flow swings to
 the west. Recalling our map of casual hot spots earlier, we suggest that a
 majority of casual users are taking trips to the waterfront, spending some time there,
-and then returning home.
+and then returning to their homes in the west.
 
-As one last view, let's examine these patterns over a typical week.
+As one last view, let's examine how these patterns evolve over a typical week.
 
 ![](analysis-report_files/figure-html/Traffic flow by hour and weekday faceted 2-1.png)<!-- -->
 
+![](analysis-report_files/figure-html/unnamed-chunk-1-1.gif)<!-- -->
+
+
+# Try gganimate for the traffic flow
+## All traffic flow
+When we look at the overall traffic flow for the city, it is remarkably
+consistent, day to day and between members and casuals.  Traffic flows in
+to the waterfront from all directions, and flows out from the waterfront
+either to the northwest or southwest, depending which side of Navy Pier
+one is on.
+![](analysis-report_files/figure-html/all traffic flow mapped-1.gif)<!-- -->
+
+![](analysis-report_files/figure-html/sectored weekend vectors-1.gif)<!-- -->
+![](analysis-report_files/figure-html/sectored weekday vectors-1.gif)<!-- -->
 
 
 
-
-
+![](analysis-report_files/figure-html/unnamed-chunk-2-1.gif)<!-- -->
 
 
 

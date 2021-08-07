@@ -40,6 +40,16 @@ Truncate <- function(x, ndigits = 1) {
   trunc(x*10^ndigits)/10^ndigits
 }
 
+# Normal 2-digit precision sectors were too small, 1-digits are too big.
+# coord %% 2 == 1 --> 2x as wide & tall
+Sector <- function(coord) {
+  coord <- round(coord * 100, 0)
+  indices <- coord %% 2 == 1
+  coord[indices] <- 
+    sign(coord[indices]) *
+    (abs(coord[indices]) + 1)
+  coord / 100
+}
 
 x.txt.size = 13  # scale the x axis ticks in many graphs
 
@@ -692,24 +702,24 @@ animation <- ggplot(gapminder, aes(gdpPercap, lifeExp, size = pop, colour = coun
   # Here comes the gganimate specific bits
   labs(title = 'Year: {frame_time}', x = 'GDP per capita', y = 'life expectancy') +
   transition_time(year) +
-  ease_aes('linear')
+  ease_aes('linear') +
+  shadow_wake(wake_length = 0.6)
 animation
 #anim_save("./img/gapminder.gif")
 ```
 
-
-# Try gganimate for the traffic flow
 ## All traffic flow
 When we look at the overall traffic flow for the city, it is remarkably
 consistent, day to day and between members and casuals.  Traffic flows in
 to the waterfront from all directions, and flows out from the waterfront
 either to the northwest or southwest, depending which side of Navy Pier
 one is on.
-```{r all traffic flow mapped}
+```{r all traffic flow mapped sectored}
 alltraffic <- df %>% 
-  group_by(timecode = 
-             paste0(sprintf("%02d", lubridate::hour(started_at)), ":",
-                    if_else(lubridate::minute(started_at) <= 30, "00", "30")),
+  mutate(minute = minute(started_at),
+         minute = cut_interval(minute, n = 6, 
+                               labels = c("00","10","20","30","40","50"))) %>% 
+  group_by(timecode = paste0(sprintf("%02d", lubridate::hour(started_at)), ":", minute),
            start_lng_sector = Sector(start_lng_sector), 
            start_lat_sector = Sector(start_lat_sector)) %>% 
   summarize(x = sum(trip_delta_x), 
@@ -722,7 +732,6 @@ alltraffic <- df %>%
   ungroup() %>% 
   mutate(angle = cut_interval(angle, n = 4)) %>%  # bin angles into 4 quadrants
   filter(magnitude >= 50)  # higher numbers make the map less cluttered
-# alltraffic$angle = cut(alltraffic$angle - 30, breaks = 4)
 
 # We'll log-transform the size of the motion vectors so the huge ones don't
 # completely dominate
@@ -730,139 +739,157 @@ p <-
   ggplot(alltraffic, 
          aes(x = start_lng_sector,
              y = start_lat_sector, 
-             xend = start_lng_sector + sign(x)*(log10(abs(x)))**1.1/250,
-             yend = start_lat_sector + sign(y)*(log10(abs(y)))**1.1/250,
+             xend = start_lng_sector + sign(x) * log10(abs(x))/200,
+             yend = start_lat_sector + sign(y) * log10(abs(y))/200,
              color = angle)) +
   geom_sf(data = boundaries_chi, mapping = aes(), inherit.aes = FALSE) +
-  geom_segment(arrow = arrow(length = unit(0.03, "npc")), size=1.6) +
+  geom_segment(arrow = arrow(length = unit(0.03, "npc")), size=1) +
   theme(legend.position = "none",
         axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank()) +
-  # scale_color_viridis(option = "turbo", discrete = TRUE, direction = -1) +
+  scale_color_brewer(palette = "Set1") +
+  labs(subtitle = "Arrows show the average direction of traffic flow out of each region") +
+  ylim(c(41.77, 42.01)) +
+  xlim(c(-87.8, -87.57)) +
+  transition_states(states = timecode, transition_length = 0, state_length = 4) +
+  ggtitle("Typical Divvy Traffic Flow: {next_state}") +
+  shadow_wake(wake_length = 0.05)
+
+animate(plot = p, fps = 24, nframes = 400, detail=2)
+# anim_save("img/trafficflow-map.gif", p)
+```
+
+
+# TODO: group by member-casual and colour each?  Or colour all by proportion
+of casuals.
+## Typical traffic volume patterns
+```{r all traffic volume mapped}
+volume <- df %>% 
+  select(started_at, start_station_id, start_lng, start_lat, member_casual) %>% 
+  mutate(minute = minute(started_at),
+         minute = cut_interval(minute, n = 6, 
+                               labels = c("00","10","20","30","40","50"))) %>% 
+  group_by(start_station_id) %>% 
+  mutate(start_lng = mean(start_lng),
+         start_lat = mean(start_lat)) %>% 
+  group_by(start_station_id,
+           start_lng,
+           start_lat,
+           timecode =
+             paste0(sprintf("%02d", lubridate::hour(started_at)), ":",
+                    minute),
+           member_casual) %>% 
+  summarise(n = n()) %>% 
+  mutate(total_trips = sum(n),
+         p_casual = n / total_trips * 100) %>% 
+  filter(member_casual == "casual") %>% 
+  mutate(mostly_casual = factor(p_casual > .5,
+                                levels = c(TRUE, FALSE),
+                                labels = c("Mostly casual", "Mostly members"))) %>% 
+  arrange(timecode, total_trips)  # for overplotting: last to be plotted are the largest points
+  # arrange(timecode, p_casual)  # for overplotting: last to be plotted are the highest casual %
+  # arrange(timecode, p_casual * total_trips)  
+
+# We'll log-transform the size of the motion vectors so the huge ones don't
+# completely dominate
+p <- 
+  ggplot(volume, 
+         aes(x = start_lng,
+             y = start_lat,
+             size = total_trips,
+             fill = p_casual,
+             color = p_casual)) +
+  geom_sf(data = boundaries_chi, mapping = aes(), inherit.aes = FALSE) +
+  # geom_point(pch = 21, color='black') +
+  geom_point(pch = 21) +
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank()) +
+  # scale_color_fermenter(palette = "Dark2", direction = -1, ) +
+  scale_fill_distiller(palette = "RdYlBu") +
+  scale_color_distiller(palette = "RdYlBu") +
+  # scale_fill_viridis(option = "viridis") +
+  scale_size_continuous(range = c(1, 9)) +
+  labs(subtitle = "Trips starting at each station") +
+  # ylim(c(41.77, 42.01)) +
+  # xlim(c(-87.8, -87.57)) +
+  transition_states(states = timecode, transition_length = 0, state_length = 1, wrap = TRUE) +
+  ggtitle("Typical Divvy Traffic Volume: {next_state}") +
+  # exit_fade(alpha = .5)
+  shadow_wake(wake_length = 0.05, wrap = TRUE, alpha = 0.1, size=1)
+
+animate(plot = p, fps = 15, nframes = 288)
+anim_save("img/traffic_volume_map.gif", p, fps = 22, nframes = 288)
+```
+
+
+
+```{r all traffic flow mapped fine detail, echo=FALSE, message=FALSE, warning=FALSE}
+alltraffic_fine <- df %>% 
+  mutate(minute = minute(started_at),
+         minute = cut_interval(minute, n = 6, 
+                               labels = c("00","10","20","30","40","50"))) %>% 
+  group_by(start_station_id) %>% 
+  mutate(start_lng = mean(start_lng),
+         start_lat = mean(start_lat)) %>% 
+  group_by(start_lng,
+           start_lat,
+           timecode =
+             paste0(sprintf("%02d", lubridate::hour(started_at)), ":",
+                    minute)) %>%
+  summarize(x = sum(trip_delta_x), 
+            y = sum(trip_delta_y),
+            magnitude = sqrt(x^2 + y^2)) %>% 
+  ungroup() %>% rowwise() %>% 
+  mutate(angle = angle_from_x_axis(y,x)) %>% 
+  ungroup() %>% 
+  # bin angles into 4 quadrants: this maps well to the diagonal directions of average traffic flow
+  mutate(angle = cut_interval(angle, n = 4)) %>%  
+  filter(magnitude >= 10) %>%  # higher numbers make the map less cluttered
+  arrange(timecode) #%>% 
+  # slice(4000:10000)
+
+# We'll log-transform the size of the motion vectors so the huge ones don't
+# completely dominate
+p <- 
+  ggplot(alltraffic_fine, 
+         aes(x = start_lng,
+             y = start_lat, 
+             xend = start_lng + sign(x) * log2(abs(x))/800,
+             yend = start_lat + sign(y) * log2(abs(y))/800,
+             color = angle)) +
+  geom_sf(data = boundaries_chi, mapping = aes(), inherit.aes = FALSE) +
+  geom_segment(size=0.6, arrow = arrow(length = unit(0.004, "npc"))) +
+  theme(legend.position = "none",
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank()) +
+  # scale_color_viridis(option = "turbo", discrete = TRUE, begin = 0.02) +
   # scale_color_fermenter(palette = "Dark2", direction = -1, ) +
   scale_color_brewer(palette = "Set1") +
-  labs(subtitle = "Colours show direction of traffic flow") +
-  ylim(c(41.77, 42.01)) +
-  xlim(c(-87.8, -87.57)) +
+  labs(subtitle = "Arrows show the average direction of traffic flow out of each station") +
+  ylim(c(41.74, 42.04)) +
+  xlim(c(-87.9, -87.51)) +
   transition_states(states = timecode, transition_length = 0, state_length = 2) +
-  ggtitle("Typical Divvy Traffic Flow: {next_state}")
+  ggtitle("Typical Divvy Traffic Flow: {next_state}") +
+  # enter_fade(alpha = .1)
+  # shadow_mark(future=TRUE)
+  # enter_grow(size = .2) 
+  shadow_wake(wake_length = 0.07,  wrap = TRUE)
 
-animate(plot = p, fps = 3, nframes = 48)
-# anim_save("img/trafficflow-map.gif", p)
-```
+FPS = 20; W = 600; H = 660; NFRAMES = 6*24*2 # bins per hour * 24 hours * extra frames
+animate(plot = p, fps = FPS, nframes = NFRAMES, width=W, height=H)  
+# animate(plot = p, fps = FPS, nframes = 6*24*2, width=800, height=1000, renderer = av_renderer("anim.mp4")) # bins/hour * 24 hours 
 
-```{r sectored weekend vectors}
-# Normal 2-digit precision sectors were too small, 1-digits are too big.
-# coord %% 2 == 1 --> 2x as wide & tall
-Sector <- function(coord) {
-  coord <- round(coord * 100, 0)
-  indices <- coord %% 2 == 1
-  coord[indices] <- 
-    sign(coord[indices]) *
-    (abs(coord[indices]) - 1)
-  coord / 100
-}
-
-weekend <- df %>% 
-  filter(weekend_weekday == 'weekend') %>% 
-  group_by(timecode = paste0(sprintf("%02d", lubridate::hour(started_at)), ":",
-                             if_else(lubridate::minute(started_at) <= 30, "00", "30")),
-           start_lng_sector = Sector(start_lng_sector), 
-           start_lat_sector = Sector(start_lat_sector)) %>% 
-  summarize(x = sum(trip_delta_x), 
-            y = sum(trip_delta_y),
-            mean_x = mean(trip_delta_x),
-            mean_y = mean(trip_delta_y),
-            magnitude = sqrt(x^2 + y^2)) %>% 
-  rowwise() %>% 
-  mutate(angle = angle_from_x_axis(y,x)) %>% 
-  filter(magnitude >= 15)  # higher numbers make the map less cluttered
-weekend$angle = cut(weekend$angle - 30, breaks = 4)
-
-# We'll log-transform the size of the motion vectors so the huge ones don't
-# completely dominate
-p <- 
-  ggplot(weekend, 
-         aes(x = start_lng_sector,
-             y = start_lat_sector, 
-             xend = start_lng_sector + sign(x)*log10(abs(x))/200,
-             yend = start_lat_sector + sign(y)*log10(abs(y))/200,
-             color = angle)) +
-  geom_sf(data = boundaries_chi, mapping = aes(), inherit.aes = FALSE) +
-  geom_segment(arrow = arrow(length = unit(0.03, "npc")), size=1.6) +
-  theme(legend.position = "none",
-        axis.title = element_blank(),
-        axis.text = element_blank(),
-        axis.ticks = element_blank()) +
-    scale_color_brewer(palette = "Dark2") +
-  labs(subtitle = "Colours show direction of traffic flow") +
-  ylim(c(41.77, 42.01)) +
-  xlim(c(-87.8, -87.57)) +
-  transition_states(states = timecode, transition_length = 0, state_length = 2) +
-  ggtitle("Typical Weekend Traffic Flow: {next_state}")
-
-animate(plot = p, fps = 3, nframes = 48)
-# anim_save("img/trafficflow-map.gif", p)
-```
-```{r sectored weekday vectors}
-weekday <- df %>% 
-  filter(weekend_weekday == 'weekday') %>% 
-  group_by(timecode = paste0(sprintf("%02d", lubridate::hour(started_at)), ":",
-                             if_else(lubridate::minute(started_at) <= 30, "00", "30")),
-           start_lng_sector = Sector(start_lng_sector), 
-           start_lat_sector = Sector(start_lat_sector)) %>% 
-  summarize(x = sum(trip_delta_x), 
-            y = sum(trip_delta_y),
-            mean_x = mean(trip_delta_x),
-            mean_y = mean(trip_delta_y),
-            magnitude = sqrt(x^2 + y^2)) %>% 
-  rowwise() %>% 
-  mutate(angle = angle_from_x_axis(y,x)) %>% 
-  filter(magnitude >= 20)  # higher numbers make the map less cluttered
-weekday$angle = cut(weekday$angle - 30, breaks = 4)
-
-# We'll log-transform the size of the motion vectors so the huge ones don't
-# completely dominate
-p <- 
-  ggplot(weekday, 
-         aes(x = start_lng_sector,
-             y = start_lat_sector, 
-             xend = start_lng_sector + sign(x)*log10(abs(x))/200,
-             yend = start_lat_sector + sign(y)*log10(abs(y))/200,
-             color = angle)) +
-  geom_sf(data = boundaries_chi, mapping = aes(), inherit.aes = FALSE) +
-  geom_segment(arrow = arrow(length = unit(0.03, "npc")), size=1.6) +
-  theme(legend.position = "none",
-        axis.title = element_blank(),
-        axis.text = element_blank(),
-        axis.ticks = element_blank()) +
-  # scale_color_viridis(option = "turbo", discrete = TRUE, direction = -1) +
-  # scale_color_fermenter(palette = "Dark2", direction = -1, ) +
-  scale_color_brewer(palette = "Dark2") +
-  labs(subtitle = "Colours show direction of traffic flow") +
-  ylim(c(41.77, 42.01)) +
-  xlim(c(-87.8, -87.57)) +
-  transition_states(states = timecode, transition_length = 0, state_length = 2) +
-  ggtitle("Typical Weekday Traffic Flow: {next_state}")
-
-animate(plot = p, fps = 3, nframes = 48)
-# anim_save("img/trafficflow-map.gif", p)
 ```
 
 
 
 ```{r}
-anim <- ggplot(iris, aes(Sepal.Width, Petal.Width)) +
-  geom_point() +
-  labs(title = "{closest_state}") +
-  transition_states(Species, transition_length = 3, state_length = 1)
-anim
+anim_save("img/trafficflow-map-detailed.gif", p, fps = FPS, nframes = 6*24*2, width=W, height=H)
+# anim_save("img/animation.mp4", p)
 ```
-
-
-
-
 
 
 
