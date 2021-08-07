@@ -227,39 +227,21 @@ As one last view, let's examine how these patterns evolve over a typical week.
 
 ![](analysis-report_files/figure-html/Traffic flow by hour and weekday faceted 2-1.png)<!-- -->
 
-![](analysis-report_files/figure-html/unnamed-chunk-1-1.gif)<!-- -->
+## Typical traffic volume patterns
+![](analysis-report_files/figure-html/all traffic volume mapped-1.gif)<!-- -->
 
 
-# Try gganimate for the traffic flow
+
 ## All traffic flow
 When we look at the overall traffic flow for the city, it is remarkably
 consistent, day to day and between members and casuals.  Traffic flows in
 to the waterfront from all directions, and flows out from the waterfront
 either to the northwest or southwest, depending which side of Navy Pier
 one is on.
-![](analysis-report_files/figure-html/all traffic flow mapped-1.gif)<!-- -->
+![](analysis-report_files/figure-html/all traffic flow mapped sectored-1.gif)<!-- -->
 
-![](analysis-report_files/figure-html/sectored weekend vectors-1.gif)<!-- -->
-![](analysis-report_files/figure-html/sectored weekday vectors-1.gif)<!-- -->
-
-
-
-![](analysis-report_files/figure-html/unnamed-chunk-2-1.gif)<!-- -->
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+## Traffic flow patterns: showing all bike stations
+![](analysis-report_files/figure-html/all traffic flow mapped fine detail-1.gif)<!-- -->
 
 
 
