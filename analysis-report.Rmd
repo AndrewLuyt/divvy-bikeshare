@@ -787,9 +787,9 @@ volume <- df %>%
   mutate(mostly_casual = factor(p_casual > .5,
                                 levels = c(TRUE, FALSE),
                                 labels = c("Mostly casual", "Mostly members"))) %>% 
-  arrange(timecode, total_trips)  # for overplotting: last to be plotted are the largest points
+  # arrange(timecode, total_trips)  # for overplotting: last to be plotted are the largest # of trips
   # arrange(timecode, p_casual)  # for overplotting: last to be plotted are the highest casual %
-  # arrange(timecode, p_casual * total_trips)  
+  arrange(timecode, p_casual * total_trips)  # for overplotting: last to be plotted are largest # of casuals
 
 # We'll log-transform the size of the motion vectors so the huge ones don't
 # completely dominate
@@ -811,16 +811,25 @@ p <-
   scale_color_distiller(palette = "RdYlBu") +
   # scale_fill_viridis(option = "viridis") +
   scale_size_continuous(range = c(1, 9)) +
-  labs(subtitle = "Trips starting at each station") +
+  labs(subtitle = "Red means a high percentage of casual users, as opposed to \nmembers. Larger circles mean more trips starting here.") 
+p
   # ylim(c(41.77, 42.01)) +
   # xlim(c(-87.8, -87.57)) +
   transition_states(states = timecode, transition_length = 0, state_length = 1, wrap = TRUE) +
-  ggtitle("Typical Divvy Traffic Volume: {next_state}") +
-  # exit_fade(alpha = .5)
-  shadow_wake(wake_length = 0.05, wrap = TRUE, alpha = 0.1, size=1)
+  ggtitle("Typical Divvy Traffic Volume & User Type: {next_state}") +
+  # enter_fade(alpha = 0.5)
+  shadow_wake(wake_length = 0.025, wrap = TRUE, size = NULL)
 
-animate(plot = p, fps = 15, nframes = 288)
-anim_save("img/traffic_volume_map.gif", p, fps = 22, nframes = 288)
+animate(plot = p, fps = 24, nframes = 432)
+# anim_save("img/traffic_volume_map.gif", p, fps = 22, nframes = 288)
+```
+
+```{r}
+anim_save("img/traffic_volume_anim2.mp4", p, fps = 24, nframes = 432, 
+          width=600, height=680, 
+          # renderer = av_renderer(framerate=24))
+          renderer = ffmpeg_renderer(options = list(b = "1200k")))
+# anim_save("img/animation.mp4", p)
 ```
 
 
