@@ -86,6 +86,13 @@ boundaries_chi <- boundaries_chi %>%
 ```{r theming}
 default_theme <- theme_set(theme_bw())
 theme_update(panel.grid = element_blank());
+
+theme_map <- theme_bw() +
+  theme(axis.title = element_blank(), 
+        axis.text = element_blank(), 
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        panel.background = element_rect(fill = 'white'))
 ```
 
 ## Executive Summary
@@ -95,6 +102,7 @@ Comparing casual users with members we find a few notable differences.
 
 ## Who rides most often?
 Overall, members take the majority of rides. 
+
 
 ```{r who rides most often, echo=FALSE, message=FALSE, fig.width=7}
 df %>% 
@@ -114,7 +122,8 @@ df %>%
         legend.position = "none")
 ```
 
-On weekends however casual use doubles and even exceeds member use. 
+Casual use doubles on the weekend, even exceeding member use. 
+
 
 ```{r who rides most often 2, echo=FALSE, message=FALSE, fig.width=7}
 df %>% 
@@ -135,6 +144,7 @@ Breaking down the number of rides by month, we can see that while the season
 is important for all riders, casual users are much less willing to ride in
 the winter months. From December to February, the system sees very little casual use.
 
+
 ```{r who rides most often 3, echo=FALSE, message=FALSE, fig.width=7}
 df %>% 
   filter(started_at >= "2020-07-01") %>% 
@@ -149,6 +159,7 @@ df %>%
   theme(legend.title = element_blank())
 ```
 
+
 **Summarizing the previous three graphs**, casual use of the system is much
 more variable than for members. It is maximized
 during summer weekends and minimized during winter weekdays.
@@ -156,8 +167,9 @@ during summer weekends and minimized during winter weekdays.
 ## How do trip distances vary?
 
 This is a bit surprising.  For trips that start and end at different stations,
-the average trip is about the same distance for
-both classes of users, two and a half kilometers.  
+the average trip is about the same distance for both classes of users, about 
+two and a half kilometers.  
+
 
 ```{r avg trip distance, echo=FALSE, message=FALSE, fig.width=7}
 df %>% 
@@ -176,45 +188,48 @@ df %>%
         axis.text.x = element_text(size = x.txt.size))
 ```
 
-Seasonally, average trip distance is smallest during the winter and largest  
-in summer, but only by about half a kilometer.
-Trip distance does not change much over the course of the week.
+
+Seasonally, average trip distance is smallest during the winter and largest in 
+summer, but only by about half a kilometer. Trip distance does not change much
+over the course of the week.
 
 ### A special case: pleasure cruises?
 
 For the above analysis we removed trips that start and end 
-at the same station since they have an apparent distance of zero. We believe
-it's likely that pleasure cruises make up a large portion of these rides.
-These rides average an hour long for casual users.
-In the 
-next section on ride duration we'll see the average of all casual trips is just
+at the same station since, lacking GPS data to track the ride, they have an 
+apparent distance of zero. We believe it's likely that pleasure cruises make up
+a large portion of these rides. These rides average an hour long for casual users.
+In the next section on ride duration we'll see the average of all casual trips is just
 over 30 minutes, an interesting difference.
 
+
 ```{r pleasure cruise caveat, results='asis'}
-df %>% 
+tmp <- df %>% 
   group_by(member_casual, is_round_trip) %>% 
   summarise(n_trips = n(), 
             avg_trip_minutes = round(mean(trip_minutes), 0)) %>% 
-  mutate(percent_of_trips = n_trips / sum(n_trips) * 100) %>% 
+  mutate(percent_of_trips = n_trips / sum(n_trips)) %>% 
   filter(is_round_trip == 'round trip') %>% 
   select(member_casual, n_trips, avg_trip_minutes, percent_of_trips) %>% 
   rename("Rider Type" = member_casual,
          "Possible pleasure cruises" = n_trips,
          "Avg trip minutes" = avg_trip_minutes,
-         "Percent of trips" = percent_of_trips) %>% 
-  knitr::kable()
+         "Percent of trips" = percent_of_trips)
+tmp$`Percent of trips` <- scales::percent(tmp$`Percent of trips`, accuracy = .1)
+tmp %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling(full_width = FALSE)
+rm(tmp)
 ```
 
 These round-trips represent about 10% of 
-all bike use and about 16% of all casual use. We also see above that casual 
-users outnumber members 3 to 1 in this interesting subset of rides.  
-We'll return to these trips in a later section, after we have explored
-ride duration.
+all bike use and about **15% of all casual use.** We also see above that casual 
+users outnumber members 3 to 1 in this interesting subset of rides. We'll 
+return to these trips in a later section, after we have explored ride duration.
 
 ## How much *time* is spent on an average ride?
-Casuals ride more than twice as long as members, on average.  There isn't
-much variation in ride duration over the week other than a slight increase
-on the weekend.
+Casuals ride more than twice as long as members, on average.  
+
 
 ```{r mean ride duration, echo=FALSE}
 df %>% 
@@ -245,13 +260,13 @@ df %>%
   geom_text(aes(label = round(mean_ride_length, digits = 0)), 
             vjust = 2.1,
             size = 4) +
-  theme(legend.position = "none",
-        axis.text.x = element_text(size = x.txt.size))
+  theme(axis.text.x = element_text(size = x.txt.size),
+        legend.title = element_blank())
 ```
 
 ## Pleasure cruises?
 
-Earlier we noted the possibility that 10% of all rides (and 16% of casual
+Earlier we noted the possibility that 10% of all rides (and 15% of casual
 rides) were round-trip
 pleasure cruises starting and ending at the same station, likely near the
 rider's home. The two graphs below provide more evidence for this idea.
@@ -259,6 +274,7 @@ rider's home. The two graphs below provide more evidence for this idea.
 If our hypothesis is correct, the percentage of this type of ride should shrink
 in winter and grow in summer and be mostly confined to casual users.  This
 first graph shows exactly this pattern.
+
 
 ```{r pleasure cruises, echo=FALSE, message=FALSE}
 df %>% 
@@ -271,14 +287,16 @@ df %>%
   facet_wrap(~member_casual, ncol = 2) +
   labs(title = "Pleasure cruises over the seasons",
        subtitle = "Percentage of all trips starting and ending at the same station",
-       x = NULL, y = "Percent of rides being round-trip") +
+       x = NULL, y = "Percent of rides that are round-trip") +
   theme(legend.position = "none")
 ```
+
 
 Second, if our idea is correct we should also see trip duration becoming longer
 in summer and shorter in winter. This should strongly affect casual users but
 have little effect on members, who have a 45-minute time limit.  This graph
 demonstrates this pattern as well.
+
 
 ```{r pleasure cruises 2, echo=FALSE, message=FALSE}
 df %>% 
@@ -294,7 +312,8 @@ df %>%
   theme(legend.position = "none")
 ```
 
-Learning how these rides differ in destination, length, or speed would require 
+
+Going further to learn how these rides differ in destination, length, or speed would require 
 some sort of GPS tracking data from the bikes, which is outside the scope of 
 this dataset.  For now we note the strong possibility that **about ten percent
 of all trips are taken for enjoyment rather than travel, and that casual users
@@ -305,6 +324,7 @@ dominate this market segment.**
 We've seen that casuals and members ride about the same distances, but members
 spend less time on the bikes. The graph below shows that members are about
 30% faster on average.
+
 
 ```{r mean trip speed}
 df %>% 
@@ -324,8 +344,9 @@ df %>%
         axis.text.x = element_text(size = x.txt.size))
 ```
 
-We now know that members ride more often and casuals ride longer: who rides the 
+We now know that members ride more often and casuals ride longer - so who rides the 
 most total minutes?  Casual users do!
+
 
 ```{r saddle time}
 df %>% group_by(member_casual) %>% 
@@ -334,7 +355,7 @@ df %>% group_by(member_casual) %>%
   geom_col() +
   scale_y_continuous(labels = scales::comma) +
   labs(title = "Who is in the saddle the longest?",
-       subtitle=paste("Total minutes since", 
+       subtitle=paste("Total minutes ridden since", 
                       lubridate::month(min(df$started_at), label = TRUE),
                       year(min(df$started_at))),
        x = NULL,
@@ -351,63 +372,9 @@ worthwhile experiment to trial a set of more comfortable, relaxed-ride bikes
 aimed at users who want to cruise in comfort.  In the maps section below we
 identify regions of the city where casual users dominate the ridership.
 
-## Which stations do casuals use?
+## Which stations do casual users choose?
 
-We'll look at this question in two parts.  **First** we'll examine who uses
-the most and least popular stations.  **Second** we will plot these stations on a
-map of Chicago.
-
-### Station popularity
-
-we'll sort the stations
-by popularity (number of trips that start there) and colour the points by the
-proportion of the type of user.
-We can extract three main insights from the  graph below:
-
-1. Overall, most stations are used primarily by members
-1. The least popular stations are dominated by casual use
-1. A few of the city's most popular stations are over 75% casual use
-  1. These might make excellent targets for any pilot programs targeting casual
-  users
-
-```{r station popularity and use}
-df %>% 
-  group_by(start_station_id, member_casual) %>% 
-  summarise(n = n()) %>% 
-  mutate(total_trips = sum(n),
-         p_casual = n / total_trips,
-         mostly_casual = factor(p_casual > .5,
-                                levels = c(TRUE, FALSE),
-                                labels = c("Mostly casual", "Mostly members"))) %>% 
-  filter(member_casual == 'casual') %>% 
-  select(start_station_id, p_casual, total_trips, mostly_casual) %>% 
-  arrange(total_trips) %>% 
-  filter(total_trips > 100) %>% # remove nearly unused stations (some might be obsolete?)
-  ggplot(aes(total_trips, p_casual)) +
-  geom_point(aes(color = mostly_casual)) +
-  geom_smooth(se = FALSE) +
-  scale_x_log10(breaks = NULL, name = "(Less)               Station Popularity               (More)") +
-  scale_y_continuous(limits = c(0,1),labels = scales::percent) +
-  annotate("text", x = 600, y = 0.95, 
-           label = "Least popular") +
-  annotate("text", x = 8000, y = 0.95, 
-           label = "Most popular") +
-  annotate("curve", x = 600, y = 0.9, xend = 140, yend=.85, curvature = -0.1,
-           arrow = arrow(length = unit(0.03, "npc")),
-           size = .7) +
-  annotate("curve", x = 8000, y = 0.9, xend = 38000, yend=.85, curvature = 0.1,
-           arrow = arrow(length = unit(0.03, "npc")),
-           size = .7) +
-  geom_hline(yintercept = 0.5, lty='dashed', col='gray30') +
-  geom_vline(xintercept = 200, lty='dotted', col='gray30') +
-  geom_vline(xintercept = 34000, lty='dotted', col='gray30') +
-  labs(title = "Station popularity and typical users",
-       subtitle = "The least and most popular stations are primarily casual use",
-       y = "Casual use") +
-  theme(legend.title = element_blank())
-```
-
-Next we'll map all the bike stations in the system and colour them by the
+Here we map all the bike stations in the system and colour them by the
 percentage of casual rides that start there.
 
 ```{r mapping the dataset 8}
@@ -448,51 +415,40 @@ stations_users <- stations %>%
 ```{r casual usage map, echo=FALSE, message=FALSE, warning=FALSE}
 # Map station usage: colour stations by casual use percentage (ride start)
 boundaries_chi %>% ggplot() +
-  geom_sf() +
+  geom_sf(fill = 'grey50') +
   geom_point(data = stations_users, 
              mapping = aes(x = station_lng, y = station_lat,
                            color = p_trips_casual)) +
-  scale_color_viridis(option = "turbo", labels = scales::percent) +
+  scale_color_viridis(option = "plasma", labels = scales::percent) +
   labs(title = "Casual usage at each station",
        color = "Casual use\n") +
-  theme_bw() +
-  theme(axis.title = element_blank(), 
-        axis.text = element_blank(), 
-        axis.ticks = element_blank(),
-        panel.grid = element_blank(),)
+  theme_map
 ```
 
 Next let's highlight hot spots.  Any station with over 70% casual use will
 be red, and we'll also give busier stations larger dots.
 
+
 ```{r casual usage map over 70}
 # Map the casual hot spots: stations over 75% casual use
-boundaries_chi %>% ggplot() +
-  geom_sf() +
-  geom_point(data = stations_users, 
-             mapping = aes(x = station_lng, y = station_lat, 
-                           fill = p_trips_casual > .7,
-                           size = n_trips_casual,
-                           shape = p_trips_casual > .7),
-             color = "black") +
-  scale_shape_manual(values = c(1,21)) +
-  scale_size_continuous(range = c(2, 9)) +
-  scale_fill_discrete(type=c("azure2", "red")) +
-  guides(fill = guide_legend(reverse = TRUE)) +  # reverse legend order, TRUE first
-  labs(title = "Stations with over 70% casual use are red",
+stations_users %>% 
+  filter(p_trips_casual > .7) %>% 
+  ggplot() +
+  geom_sf(data = boundaries_chi, inherit.aes = FALSE) +
+  geom_point(mapping = aes(x = station_lng, y = station_lat, size = n_trips_station),
+             color="black", fill = "red", pch=21) +
+  scale_size_continuous(range = c(2,9)) +
+  labs(title = "Stations with over 70% casual use are highlighted",
        subtitle = "Larger circles are busier stations",
        fill = "Over 70% casual use",
        size = "Number of trips") +
-  theme_bw() +
-  theme(axis.title = element_blank(), 
-        axis.text = element_blank(), 
-        axis.ticks = element_blank(),
-        panel.grid = element_blank(),
-        legend.position = "none")
+  theme_map +
+  theme(legend.position = "none")
 ```
 
 Finally let's zoom in on the notable hot spot near Navy Pier.  Of all stations with
 over 70% casual use, these are the busiest.
+
 
 ```{r casual usage hot spot zoom, echo=FALSE, message=FALSE, warning=FALSE}
 # Map the BUSY casual hot spots
@@ -508,7 +464,6 @@ stations_users_busy <- stations %>%
   rename(n_trips_casual = n_trips) %>% 
   arrange(p_trips_casual)
 ```
-
 
 ```{r mapping the dataset 16, echo=FALSE, message=FALSE, warning=FALSE}
 boundaries_chi %>% ggplot() +
@@ -530,7 +485,7 @@ boundaries_chi %>% ggplot() +
        size = "Casual trips") +
   ylim(c(41.86, 41.90)) +
   xlim(c(-87.67, -87.59)) +
-  theme_bw() +
+  theme_map +
   theme(axis.title = element_blank(), 
         axis.text = element_blank(), 
         axis.ticks = element_blank(),
@@ -733,7 +688,7 @@ p <-
   annotate("text", x = -87.865, y = 42.06, label = "CHICAGO", color = "grey70", cex = 10) +
   labs(subtitle = "Red means a high percentage of casual users leaving a station, blue means users\nwith Divvy memberships.   Larger circles mean more trips starting there.",
        caption = "Andrew Luyt, 2021  |  Source: Divvy public data") +
-  ggtitle("Divvy bike share traffic volume & user type     {next_state}") +
+  ggtitle("Divvy bike share: traffic volume & user type     {next_state}") +
   theme(axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank(),
@@ -798,11 +753,11 @@ p <-
         axis.text = element_blank(),
         axis.ticks = element_blank()) +
   scale_color_brewer(palette = "Set1") +
-  labs(subtitle = "Arrows show the average direction of traffic flow out of each region") +
+  labs(subtitle = "Arrows show the average direction of traffic flow out of each region.\nLonger arrows mean a stronger tendency for traffic to flow that direction.") +
   ylim(c(41.77, 42.01)) +
   xlim(c(-87.8, -87.57)) +
   transition_states(states = timecode, transition_length = 0, state_length = 1) +
-  ggtitle("Typical Divvy Traffic Flow: {next_state}") +
+  ggtitle("Divvy bike share, typical traffic flow: {next_state}") +
   shadow_wake(wake_length = 0.02, size = NULL)
 
 FPS = 24; W = 600; H = 660; DTL = 2; NFRAMES = 6*24*3 # bins per hour * 24 hours * ()
@@ -855,11 +810,11 @@ p <-
         axis.ticks = element_blank()) +
   # scale_color_viridis(option = "turbo", discrete = TRUE, begin = 0.02) +
   scale_color_brewer(palette = "Set1") +
-  labs(subtitle = "Arrows show the average direction of traffic flow out of each station") +
+  labs(subtitle = "Arrows show the average direction of traffic flow out of each station.\nLonger arrows mean a stronger tendency for traffic to flow that direction.") +
   ylim(c(41.8, 42.0)) +
   xlim(c(-87.8, -87.55)) +
   transition_states(states = timecode, transition_length = 0, state_length = 3) +
-  ggtitle("Typical Divvy Traffic Flow: {next_state}") +
+  ggtitle("Divvy bike share, typical traffic flow: {next_state}") +
   # enter_fade(alpha = .1)
   # shadow_mark(future=TRUE)
   # enter_grow(size = .2) 
@@ -915,11 +870,11 @@ p <-
         axis.ticks = element_blank()) +
   # scale_color_brewer(palette = "Set1") +
   scale_color_manual(values=c('#6B4EF3','#DC267F','#FF6100','#3FE205')) +  # colorblind-safe
-  labs(subtitle = "Arrows show the average direction of traffic flow out of each station") +
+  labs(subtitle = "Arrows show the average direction of traffic flow out of each station.\nLonger arrows mean a stronger tendency for traffic to flow that direction.") +
   ylim(c(41.85, 41.95)) +
   xlim(c(-87.75, -87.6)) +
   transition_states(states = timecode, transition_length = 0, state_length = 3) +
-  ggtitle("Typical Divvy Traffic Flow: {next_state}") +
+  ggtitle("Divvy bike share, typical traffic flow: {next_state}") +
   # enter_fade(alpha = .1)
   # shadow_mark(future=TRUE)
   # enter_grow(size = .2) 
@@ -932,6 +887,10 @@ animate(plot = p, fps = FPS, nframes = NFRAMES, width=W, height=H)
 # anim_save("img/trafficflow-map-detailed.gif", p, fps = FPS, nframes = NFRAMES, width=W, height=H)
 ```
 
+```{r}
+### show any warnings encountered during knitting
+warnings()
+```
 
 
 

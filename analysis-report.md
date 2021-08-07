@@ -62,8 +62,8 @@ over 30 minutes, an interesting difference.
 
 |Rider Type | Possible pleasure cruises| Avg trip minutes| Percent of trips|
 |:----------|-------------------------:|----------------:|----------------:|
-|casual     |                    315156|               61|        16.029109|
-|member     |                    110279|               26|         4.221841|
+|casual     |                    256348|               60|        15.042934|
+|member     |                     85576|               25|         3.794076|
 
 These round-trips represent about 10% of 
 all bike use and about 16% of all casual use. We also see above that casual 
@@ -231,20 +231,20 @@ As one last view, let's examine how these patterns evolve over a typical week.
 ![](analysis-report_files/figure-html/all traffic volume mapped-1.gif)<!-- -->
 
 
-
 ## All traffic flow
 When we look at the overall traffic flow for the city, it is remarkably
 consistent, day to day and between members and casuals.  Traffic flows in
 to the waterfront from all directions, and flows out from the waterfront
 either to the northwest or southwest, depending which side of Navy Pier
 one is on.
+
 ![](analysis-report_files/figure-html/all traffic flow mapped sectored-1.gif)<!-- -->
 
 ## Traffic flow patterns: showing all bike stations
+
 ![](analysis-report_files/figure-html/all traffic flow mapped fine detail-1.gif)<!-- -->
 
-
-
+![](analysis-report_files/figure-html/all traffic flow mapped fine detail zoomed-1.gif)<!-- -->
 
 
 
