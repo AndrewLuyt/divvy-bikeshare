@@ -176,7 +176,7 @@ pre code {
 <h2>Purpose</h2>
 <p>Transform the numerous raw .csv files into a single, cleaned .csv with some extra features.</p>
 <p>Read <strong>all</strong> csv files available (except <code>alldata.csv.gz</code>) into a single dataframe, add features, then save complete dataset to <code>alldata.csv.gz</code>.</p>
-<p>Only include files in the data directory which you wish to include in the analysis. If datasets which are too old to be relevant are included in the data directory, they will also be read.</p>
+<p>Only include files in the data directory which you wish to include in the analysis. If datasets which are too old to be relevant are included in the data directory they will also be read, undoubtedly to your great despair.</p>
 <pre class="r"><code>library(data.table)  # use fread for speed
 library(R.utils)     # allow fread to read/write .gz
 library(tidyverse)
@@ -228,7 +228,7 @@ df &lt;-
 </ul></li>
 <li><code>trip_minutes</code>: Some trips are of negative duration and will be filtered out later. Online research suggests that some of this comes from Divvy taking bikes in and out of service for quality control reasons.</li>
 <li><code>trip_delta_</code>: horizontal/vertical components of a trip (km). East and north are positive values, west and south are negative.</li>
-<li><code>is_round_trip</code>: a boolean flag that shows if the trip started and ended at the same station. Meant to distinguish between commute-type trips and pleasure cruises.</li>
+<li><code>is_round_trip</code>: a boolean flag that shows if the trip started and ended at the same station. Meant to distinguish between commute-type trips and pleasure cruises, and filter out trip_distance=0.</li>
 <li><code>trip_distance</code>: straight-line distance (km) from start to finish. This is a proxy for the actual trip path as ridden, which is not available in the dataset. It will always be smaller than reality. Round trips have a distance of 0 by this measure. Unavoidable, as GPS tracks showing the true route taken are not available.</li>
 <li><code>trip_kph</code>: Estimate of overall trip speed. Since <code>trip_distance</code> is an underestimate, this speed is faster than reality. However, it will be useful as a <em>relative comparison</em> between groups.</li>
 </ul>

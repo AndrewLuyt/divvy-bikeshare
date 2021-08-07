@@ -18,7 +18,7 @@
 #' Only include files in the data
 #' directory which you wish to include in the analysis.
 #' If datasets which are too old to be relevant are included in the data
-#' directory, they will also be read.
+#' directory they will also be read, undoubtedly to your great despair.
 #+ message=FALSE
 library(data.table)  # use fread for speed
 library(R.utils)     # allow fread to read/write .gz
@@ -78,7 +78,7 @@ df <-
 #'  are positive values, west and south are negative.
 #'  - `is_round_trip`: a boolean flag that shows if the trip started and ended
 #'    at the same station.  Meant to distinguish between commute-type trips
-#'    and pleasure cruises.
+#'    and pleasure cruises, and filter out trip_distance=0.
 #'  - `trip_distance`: straight-line distance (km) from start to finish.
 #'  This is a proxy for the actual trip path as ridden, which is not available
 #'  in the dataset. It will always be smaller than reality. Round trips have

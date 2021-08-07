@@ -23,7 +23,7 @@ output:
   are being used with such limited information.
     - We have obtained map data for Chicago so we can more sensibly interpret
     the location information.
-- **Data has been limited to sources as new or newer than April 2020** to
+- **Data has been limited to the past year** to
   analyze only current trends.
 
 ## Data Rights
@@ -193,16 +193,16 @@ df %>%
 ## # A tibble: 10 × 2
 ##    start_station_name         start_lat
 ##    <chr>                          <dbl>
-##  1 Aberdeen St & Monroe St      41.8803
-##  2 Aberdeen St & Monroe St      41.8805
-##  3 Aberdeen St & Monroe St      41.8804
+##  1 Aberdeen St & Jackson Blvd   41.8777
+##  2 Aberdeen St & Monroe St      41.8804
+##  3 Aberdeen St & Jackson Blvd   41.8778
 ##  4 Aberdeen St & Monroe St      41.8803
-##  5 Aberdeen St & Monroe St      41.8805
+##  5 Aberdeen St & Monroe St      41.8804
 ##  6 Aberdeen St & Jackson Blvd   41.8777
-##  7 Aberdeen St & Monroe St      41.8805
-##  8 Aberdeen St & Monroe St      41.8804
+##  7 Aberdeen St & Jackson Blvd   41.8778
+##  8 Aberdeen St & Monroe St      41.8805
 ##  9 Aberdeen St & Monroe St      41.8804
-## 10 Aberdeen St & Jackson Blvd   41.8776
+## 10 Aberdeen St & Jackson Blvd   41.8777
 ```
 
 

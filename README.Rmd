@@ -51,7 +51,7 @@ https://divvy-tripdata.s3.amazonaws.com/index.html
 - ![](img/checkmark.png) Original: Yes, internal data.
 - **?** Comprehensive: The data has 13 features: trip times, stations involved, geographical coordinates, and membership information. It might be difficult to infer how the bikes are being used.
 - ![](img/checkmark.png) Current: The newest data is approximately one month old, and extends back to 2013.
-  - Some of this information may be too old to be relevant. **We will limit to data no older than April 2020.**
+  - Some of this information may be too old to be relevant. **We will limit to data no older than one year.**
 - ![](img/checkmark.png) Cited: Yes
 
 

@@ -60,5 +60,5 @@ Produce a report with the following deliverables:
 -   ![](img/checkmark.png) Current: The newest data is approximately one
     month old, and extends back to 2013.
     -   Some of this information may be too old to be relevant. **We
-        will limit to data no older than April 2020.**
+        will limit to data no older than one year.**
 -   ![](img/checkmark.png) Cited: Yes

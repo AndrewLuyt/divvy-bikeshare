@@ -23,7 +23,7 @@ output:
   are being used with such limited information.
     - We have obtained map data for Chicago so we can more sensibly interpret
     the location information.
-- **Data has been limited to sources as new or newer than April 2020** to
+- **Data has been limited to the past year** to
   analyze only current trends.
 
 ## Data Rights
