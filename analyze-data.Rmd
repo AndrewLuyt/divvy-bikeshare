@@ -608,7 +608,7 @@ x2 <- df %>%
 # for a heatmap use bin2d and the identity stat -----------------------------
 ggplot(boundaries_chi, aes()) + 
   geom_sf() +
-  geom_bin2d(data = x2, stat = 'identity', bins=c(25,50),
+  geom_bin2d(data = x2, stat = 'identity',# bins=c(25,50),
              mapping = aes(start_lng_sector, start_lat_sector, fill= avg_trip_mins),
              alpha = 1) +
   scale_fill_viridis(option = 'plasma') +
