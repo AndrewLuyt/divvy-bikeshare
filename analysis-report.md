@@ -21,9 +21,11 @@ Comparing casual users with members we find a few notable differences.
 ## Who rides most often?
 Overall, members take the majority of rides. 
 
+
 ![](analysis-report_files/figure-html/who rides most often-1.png)<!-- -->
 
-On weekends however casual use doubles and even exceeds member use. 
+Casual use doubles on the weekend, even exceeding member use. 
+
 
 ![](analysis-report_files/figure-html/who rides most often 2-1.png)<!-- -->
 
@@ -31,7 +33,9 @@ Breaking down the number of rides by month, we can see that while the season
 is important for all riders, casual users are much less willing to ride in
 the winter months. From December to February, the system sees very little casual use.
 
+
 ![](analysis-report_files/figure-html/who rides most often 3-1.png)<!-- -->
+
 
 **Summarizing the previous three graphs**, casual use of the system is much
 more variable than for members. It is maximized
@@ -40,41 +44,60 @@ during summer weekends and minimized during winter weekdays.
 ## How do trip distances vary?
 
 This is a bit surprising.  For trips that start and end at different stations,
-the average trip is about the same distance for
-both classes of users, two and a half kilometers.  
+the average trip is about the same distance for both classes of users, about 
+two and a half kilometers.  
+
 
 ![](analysis-report_files/figure-html/avg trip distance-1.png)<!-- -->
 
-Seasonally, average trip distance is smallest during the winter and largest  
-in summer, but only by about half a kilometer.
-Trip distance does not change much over the course of the week.
+
+Seasonally, average trip distance is smallest during the winter and largest in 
+summer, but only by about half a kilometer. Trip distance does not change much
+over the course of the week.
 
 ### A special case: pleasure cruises?
 
 For the above analysis we removed trips that start and end 
-at the same station since they have an apparent distance of zero. We believe
-it's likely that pleasure cruises make up a large portion of these rides.
-These rides average an hour long for casual users.
-In the 
-next section on ride duration we'll see the average of all casual trips is just
+at the same station since, lacking GPS data to track the ride, they have an 
+apparent distance of zero. We believe it's likely that pleasure cruises make up
+a large portion of these rides. These rides average an hour long for casual users.
+In the next section on ride duration we'll see the average of all casual trips is just
 over 30 minutes, an interesting difference.
 
 
-|Rider Type | Possible pleasure cruises| Avg trip minutes| Percent of trips|
-|:----------|-------------------------:|----------------:|----------------:|
-|casual     |                    256348|               60|        15.042934|
-|member     |                     85576|               25|         3.794076|
+<table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;">
+ <thead>
+  <tr>
+   <th style="text-align:left;"> Rider Type </th>
+   <th style="text-align:right;"> Possible pleasure cruises </th>
+   <th style="text-align:right;"> Avg trip minutes </th>
+   <th style="text-align:left;"> Percent of trips </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> casual </td>
+   <td style="text-align:right;"> 256348 </td>
+   <td style="text-align:right;"> 60 </td>
+   <td style="text-align:left;"> 15.0% </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> member </td>
+   <td style="text-align:right;"> 85576 </td>
+   <td style="text-align:right;"> 25 </td>
+   <td style="text-align:left;"> 3.8% </td>
+  </tr>
+</tbody>
+</table>
 
 These round-trips represent about 10% of 
-all bike use and about 16% of all casual use. We also see above that casual 
-users outnumber members 3 to 1 in this interesting subset of rides.  
-We'll return to these trips in a later section, after we have explored
-ride duration.
+all bike use and about **15% of all casual use.** We also see above that casual 
+users outnumber members 3 to 1 in this interesting subset of rides. We'll 
+return to these trips in a later section, after we have explored ride duration.
 
 ## How much *time* is spent on an average ride?
-Casuals ride more than twice as long as members, on average.  There isn't
-much variation in ride duration over the week other than a slight increase
-on the weekend.
+Casuals ride more than twice as long as members, on average.  
+
 
 ![](analysis-report_files/figure-html/mean ride duration-1.png)<!-- -->
 
@@ -85,7 +108,7 @@ winter trips taken tend to be short - half the length of rides at the peak of su
 
 ## Pleasure cruises?
 
-Earlier we noted the possibility that 10% of all rides (and 16% of casual
+Earlier we noted the possibility that 10% of all rides (and 15% of casual
 rides) were round-trip
 pleasure cruises starting and ending at the same station, likely near the
 rider's home. The two graphs below provide more evidence for this idea.
@@ -94,16 +117,20 @@ If our hypothesis is correct, the percentage of this type of ride should shrink
 in winter and grow in summer and be mostly confined to casual users.  This
 first graph shows exactly this pattern.
 
+
 ![](analysis-report_files/figure-html/pleasure cruises-1.png)<!-- -->
+
 
 Second, if our idea is correct we should also see trip duration becoming longer
 in summer and shorter in winter. This should strongly affect casual users but
 have little effect on members, who have a 45-minute time limit.  This graph
 demonstrates this pattern as well.
 
+
 ![](analysis-report_files/figure-html/pleasure cruises 2-1.png)<!-- -->
 
-Learning how these rides differ in destination, length, or speed would require 
+
+Going further to learn how these rides differ in destination, length, or speed would require 
 some sort of GPS tracking data from the bikes, which is outside the scope of 
 this dataset.  For now we note the strong possibility that **about ten percent
 of all trips are taken for enjoyment rather than travel, and that casual users
@@ -115,10 +142,12 @@ We've seen that casuals and members ride about the same distances, but members
 spend less time on the bikes. The graph below shows that members are about
 30% faster on average.
 
+
 ![](analysis-report_files/figure-html/mean trip speed-1.png)<!-- -->
 
-We now know that members ride more often and casuals ride longer: who rides the 
+We now know that members ride more often and casuals ride longer - so who rides the 
 most total minutes?  Casual users do!
+
 
 ![](analysis-report_files/figure-html/saddle time-1.png)<!-- -->
 
@@ -127,28 +156,9 @@ worthwhile experiment to trial a set of more comfortable, relaxed-ride bikes
 aimed at users who want to cruise in comfort.  In the maps section below we
 identify regions of the city where casual users dominate the ridership.
 
-## Which stations do casuals use?
+## Which stations do casual users choose?
 
-We'll look at this question in two parts.  **First** we'll examine who uses
-the most and least popular stations.  **Second** we will plot these stations on a
-map of Chicago.
-
-### Station popularity
-
-we'll sort the stations
-by popularity (number of trips that start there) and colour the points by the
-proportion of the type of user.
-We can extract three main insights from the  graph below:
-
-1. Overall, most stations are used primarily by members
-1. The least popular stations are dominated by casual use
-1. A few of the city's most popular stations are over 75% casual use
-  1. These might make excellent targets for any pilot programs targeting casual
-  users
-
-![](analysis-report_files/figure-html/station popularity and use-1.png)<!-- -->
-
-Next we'll map all the bike stations in the system and colour them by the
+Here we map all the bike stations in the system and colour them by the
 percentage of casual rides that start there.
 
 
@@ -156,7 +166,8 @@ percentage of casual rides that start there.
 ![](analysis-report_files/figure-html/casual usage map-1.png)<!-- -->
 
 Next let's highlight hot spots.  Any station with over 70% casual use will
-be red, and we'll also give busier stations larger dots.
+be red, and **we'll also give busier stations larger dots.**
+
 
 ![](analysis-report_files/figure-html/casual usage map over 70-1.png)<!-- -->
 
@@ -173,78 +184,41 @@ Navy Pier. They represent what is easily the most popular casual use desination
 anywhere in the city, demonstrating a consistent pattern of activity by casual
 users of the system.
 
-## Traffic Flow: Hourly and daily patterns
+## Traffic Flow: daily patterns
 In our last piece of analysis we will examine the overall traffic flow for
-patterns
+patterns.  First up, traffic volume at all stations.
 
-We calculate the overall traffic flow in the bike system. Each arrow represents
-overall motion of all the bikes during a one-hour period.  An arrow pointing
-northwest means that during that hour, bikes tend to be moving in that direction.
-We'll use this to examine the difference in overall traffic flow over each hour 
-in a week, comparing members vs casual users.
-
-*Technical note: to calculate this metric, each trip is treated as a vector.
-All vectors in a particular hour are added end-to-end and the final vector
-is treated as the overall traffic flow.*
-
-![](analysis-report_files/figure-html/create motion vectors day-of-week-hour-1.png)<!-- -->
-
-Let's look at the members first, and the strong diagonal feature.
-The blue-green arrows pointing southeast
-show a strong trend in the morning hours for members to ride in that
-direction. Recalling the early-morning spike in member traffic, these
-arrows represent the morning rush hour.  The orange-red arrows pointing
-northwest represent the evening commute.  The pattern for members is
-very strong: the overall traffic flow is dominated by commuters and flows
-diagonally across the city in two distinct periods.
-
-For casual users the signal is weaker, showing that casual riders tend
-to ride to more varied destinations.  Still, there is a clear distinction
-shown by the colours: morning traffic trends east and afternoon & evening
-traffic trends west.
-
-Let's break this down further and split the trips into weekends vs weekdays.
-
-![](analysis-report_files/figure-html/create motion vectors weekday-hour-1.png)<!-- -->
-
-Things become clearer. During the week, casual traffic follows a similar pattern
-as members, suggesting that many of these trips are actually for commuting.
-
-Next, let's examine casual traffic flow only.
-
-![](analysis-report_files/figure-html/create motion vectors casual weekend-weekday-1.png)<!-- -->
-
-We see the commuting pattern during the weekdays, traveling mostly along
-the northwest-southeast diagonal. 
-On the weekend however, things are more interesting. Many casual trips are taken 
-in the morning to early afternoon, traveling
-northeast.  In the afternoon the traffic flow swings to
-the west. Recalling our map of casual hot spots earlier, we suggest that a
-majority of casual users are taking trips to the waterfront, spending some time there,
-and then returning to their homes in the west.
-
-As one last view, let's examine how these patterns evolve over a typical week.
-
-![](analysis-report_files/figure-html/Traffic flow by hour and weekday faceted 2-1.png)<!-- -->
-
-## Typical traffic volume patterns
 ![](analysis-report_files/figure-html/all traffic volume mapped-1.gif)<!-- -->
 
 
 ## All traffic flow
 When we look at the overall traffic flow for the city, it is remarkably
-consistent, day to day and between members and casuals.  Traffic flows in
-to the waterfront from all directions, and flows out from the waterfront
+consistent, day to day and between members and casuals.  Traffic mostly flows in
+to the waterfront from all directions, and flows out *from* the waterfront
 either to the northwest or southwest, depending which side of Navy Pier
 one is on.
 
+Each arrow represents
+overall motion of all the bikes during a 10-minute period.  An arrow pointing
+northwest means that during that time the **average** motion of bikes is that direction.
+The stronger the trend, the longer the arrow.
+
+We'll first look at the big traffic patterns in the city.  Traffic flow from
+bike stations surrounding each arrow have been aggregated together
+
 ![](analysis-report_files/figure-html/all traffic flow mapped sectored-1.gif)<!-- -->
+
+*Technical note: to calculate this metric, each trip is treated as a vector
+from start station to end station.
+All vectors in a particular period of time are added end-to-end and the final vector
+is treated as the overall traffic flow.*
 
 ## Traffic flow patterns: showing all bike stations
 
 ![](analysis-report_files/figure-html/all traffic flow mapped fine detail-1.gif)<!-- -->
 
 ![](analysis-report_files/figure-html/all traffic flow mapped fine detail zoomed-1.gif)<!-- -->
+
 
 
 

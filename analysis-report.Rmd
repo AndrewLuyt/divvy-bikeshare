@@ -645,53 +645,8 @@ anim_save("img/traffic-volume-map-june.mp4", p, fps = FPS, nframes = NFRAMES,
 anim_save("img/traffic-volume-map-june.gif", p, fps = FPS, detail = DTL, nframes = NFRAMES, width=W, height=H)
 ```
 
-```{r bin2d traffic volume, echo=FALSE, message=FALSE}
-
-```
 
 
-```{r bin2d traffic membercasual, echo=FALSE, message=FALSE}
-volume <- df %>% 
-  # busiest day of the year is day 170 (June 19)
-  filter(lubridate::year(started_at) == 2021, lubridate::yday(started_at) == 170) %>%
-  # filter(lubridate::hour(started_at) > 10, lubridate::hour(started_at) < 12) %>%
-  mutate(minute = minute(started_at),    # round time into bins
-         minute = cut_interval(minute, n = 3,
-                               labels = c("00","20","40")),
-         started_at = 
-           parse_date_time(paste0(lubridate::date(started_at), " ", 
-                                  lubridate::hour(started_at), ":", minute),
-                           "Ymd HM")) %>% 
-  group_by(started_at, start_lng_sector, start_lat_sector, member_casual) %>% 
-  summarise(n = n()) %>% 
-  # summarise(avg_trip_mins = mean(trip_minutes), n_trips_sector = n())
-  mutate(total_trips = sum(n),
-         p_casual = n / total_trips) %>%  
-  filter(member_casual == "casual") %>%
-  select(-c(member_casual, n))
-  arrange(started_at, total_trips)
-
-
-# use the summary you just calculated
-# for a heatmap use bin2d and the identity stat -----------------------------
-p <- volume %>% 
-  ggplot(aes(start_lng_sector, start_lat_sector, fill = total_trips, group = started_at)) +
-  geom_sf(data = boundaries_chi, mapping = aes(), inherit.aes = FALSE, fill="grey60") +
-  geom_bin2d(stat = 'identity', ) +
-  scale_fill_viridis(option = 'plasma', direction = -1) +
-  # facet_wrap(~member_casual) +
-  ggtitle("Bicycle use on June 19, 2021    {previous_state}") +
-  theme_map_dark +
-  transition_states(states = started_at, transition_length = 5, state_length = 0, wrap = TRUE) +
-  enter_fade() + exit_fade()
-
-FPS = 30;W = 600;H = 660;DTL = 3;S = paste0(W,"x",H);NFRAMES = 3*24*1*5 # minutebins*hours*days*framesperbin
-animate(plot = p, fps = FPS, nframes = NFRAMES, width = W, height = H, detail = DTL)
-# anim_save("img/traffic-volume-map-bin2d.mp4", p, fps = FPS, nframes = NFRAMES,
-#           width=W, height=H, detail=DTL,
-#           renderer = ffmpeg_renderer(options = list(s = S, b = "1200k")))
-# anim_save("img/traffic-volume-map-bin2d.gif", p, fps = FPS, detail = DTL, nframes = NFRAMES, width=W, height=H)
-```
 
 
 ## All traffic flow
@@ -769,17 +724,23 @@ is treated as the overall traffic flow.*
 
 ```{r all traffic flow mapped fine detail, echo=FALSE, message=FALSE, warning=FALSE}
 alltraffic_fine <- df %>% 
+  filter(lubridate::wday(started_at) == 6) %>%
   mutate(minute = minute(started_at),
-         minute = cut_interval(minute, n = 6, 
-                               labels = c("00","10","20","30","40","50"))) %>% 
+         minute = cut_interval(minute, n = 3, 
+                               labels = c("00","20", "40")),
+         started_at = 
+           parse_date_time(paste0(lubridate::date(started_at), " ", 
+                                  lubridate::hour(started_at), ":", minute),
+                           "Ymd HM"),
+         started_at = format(started_at, "%H:%M:%S")) %>% 
+         # minute = cut_interval(minute, n = 6, 
+         #                       labels = c("00","10","20","30","40","50"))) %>% 
   group_by(start_station_id) %>% 
   mutate(start_lng = mean(start_lng),
          start_lat = mean(start_lat)) %>% 
-  group_by(start_lng,
-           start_lat,
-           timecode = paste0(sprintf("%02d", lubridate::hour(started_at)), ":",
-                             minute)) %>%
-  summarize(x = sum(trip_delta_x), 
+  group_by(started_at, start_lng, start_lat) %>%
+  summarize(start_station_id = first(start_station_id),
+            x = sum(trip_delta_x), 
             y = sum(trip_delta_y),
             magnitude = sqrt(x^2 + y^2),
             n_trips = n()) %>% 
@@ -790,7 +751,7 @@ alltraffic_fine <- df %>%
   # NB: The geom_segments don't use this variable, it's for colouring
   mutate(angle = cut_interval(angle, n = 4, labels = 1:4)) %>%  
   filter(n_trips > 2) %>%  # declutter map: remove rarely-used stations
-  arrange(timecode, desc(angle)) #%>% 
+  arrange(started_at, desc(angle)) #%>% 
 
 # We'll log-transform the size of the motion vectors so the huge ones don't
 # completely dominate
@@ -798,29 +759,33 @@ p <-
   ggplot(alltraffic_fine, 
          aes(x = start_lng,
              y = start_lat, 
-             xend = start_lng + sign(x) * log2(abs(x))/1500,
-             yend = start_lat + sign(y) * log2(abs(y))/1500,
-             color = angle)) +
-  geom_sf(data = boundaries_chi, mapping = aes(), inherit.aes = FALSE) +
-  geom_segment(size=0.7, arrow = arrow(length = unit(0.005, "npc"))) +
+             xend = start_lng + sign(x) * log2(abs(x))/900,
+             yend = start_lat + sign(y) * log2(abs(y))/900,
+             color = angle,
+             group = started_at)) +
+  geom_sf(data = boundaries_chi, mapping = aes(), inherit.aes = FALSE, fill="grey95") +
+  geom_segment(size=0.6, arrow = arrow(length = unit(0.007, "npc"))) +
   theme_map +
   theme(legend.position = "none") +
   scale_color_manual(values=c('#6B4EF3','#DC267F','#FF6100','#3FE205')) +  # colorblind-safe
+  # scale_color_brewer(type = 'qual', palette = "Set1") +
   labs(subtitle = "Arrows show the average direction of traffic flow out of each station.\nLonger arrows mean a stronger tendency for traffic to flow that direction.",
        caption = "Andrew Luyt, 2021  |  Source: Divvy public data") +
   ylim(c(41.8, 42.0)) +
   xlim(c(-87.8, -87.55)) +
-  transition_states(states = timecode, transition_length = 0, state_length = 3) +
-  ggtitle("Divvy bike share, typical traffic flow: {next_state}") +
-  shadow_wake(wake_length = 0.02,  wrap = TRUE)
+  transition_states(states = started_at, transition_length = 0, state_length = 4, wrap = TRUE) +
+  ggtitle("Bike traffic flow on a typical Saturday: {next_state}") +
+  #enter_fade()# + exit_fade()
+  shadow_wake(wake_length = 0.04,  wrap = TRUE)
 
-FPS = 24; W = 650; H = 680; DTL = 2; NFRAMES = 6*24*3 # bins per hour * 24 hours * (transition + state)
+
+FPS = 30; W = 650; H = 680; DTL = 2; NFRAMES = 3*24*4 # bins per hour * 24 hours * (transition + state)
 animate(plot = p, fps = FPS, nframes = NFRAMES, width=W, height=H, detail = DTL)
-  anim_save("img/traffic-flow-detailed.mp4", p, fps = FPS, nframes = NFRAMES,
-          detail = DTL, width=W, height=H,
-          renderer = ffmpeg_renderer(options = list(b = "1200k")))
-anim_save("img/traffic-flow-detailed.gif", p, fps = FPS, nframes = NFRAMES, 
-          detail = DTL, width=W, height=H)
+# anim_save("img/traffic-flow-detailed.mp4", p, fps = FPS, nframes = NFRAMES,
+#           detail = DTL, width=W, height=H,
+#           renderer = ffmpeg_renderer(options = list(b = "1200k")))
+# anim_save("img/traffic-flow-detailed.gif", p, fps = FPS, nframes = NFRAMES, 
+          # detail = DTL, width=W, height=H)
 ```
 
 ```{r all traffic flow mapped fine detail zoomed, echo=FALSE, message=FALSE, warning=FALSE}
