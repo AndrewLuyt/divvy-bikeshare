@@ -1,9 +1,14 @@
 ---
 title: "Analyze: How do Casual Users and Annual Subscribers Differ?"
 author: "Andrew Luyt"
-date: "2021-07-27"
-output: github_document
+date: "`r paste('<br>Last updated: ',format(Sys.Date(), '%A %B %d, %Y'),'')`"
+output: 
+  github_document:
+    toc: true
 ---
+
+**This is a document for data exploration and experimentation, not a final 
+report.**
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)

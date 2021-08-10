@@ -1,7 +1,7 @@
 ---
 title: "Divvy Case Study"
 author: "Andrew Luyt"
-date: "July 27, 2021"
+date: "`r paste('<br>Last updated: ',format(Sys.Date(), '%A %B %d, %Y'),'')`"
 output: 
   github_document:
     toc: true

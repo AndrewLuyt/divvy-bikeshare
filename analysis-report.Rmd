@@ -1,10 +1,9 @@
 ---
 title: "Analysis: How Casual Users and Members Differ"
 author: "Andrew Luyt"
-date: "2021-07-29"
-output: 
-  html_document:
-    keep_md: true
+date: "`r paste('<br>Last updated: ',format(Sys.Date(), '%A %B %d, %Y'),'')`"
+output: github_document:
+    toc: true
 ---
 
 ```{r setup, include=FALSE}
@@ -759,8 +758,8 @@ p <-
   ggplot(alltraffic_fine, 
          aes(x = start_lng,
              y = start_lat, 
-             xend = start_lng + sign(x) * log2(abs(x))/900,
-             yend = start_lat + sign(y) * log2(abs(y))/900,
+             xend = start_lng + sign(x) * log2(abs(x))/1100,
+             yend = start_lat + sign(y) * log2(abs(y))/1100,
              color = angle,
              group = started_at)) +
   geom_sf(data = boundaries_chi, mapping = aes(), inherit.aes = FALSE, fill="grey95") +
@@ -776,7 +775,7 @@ p <-
   transition_states(states = started_at, transition_length = 0, state_length = 4, wrap = TRUE) +
   ggtitle("Bike traffic flow on a typical Saturday: {next_state}") +
   #enter_fade()# + exit_fade()
-  shadow_wake(wake_length = 0.04,  wrap = TRUE)
+  shadow_wake(wake_length = 0.05,  wrap = TRUE)
 
 
 FPS = 30; W = 650; H = 680; DTL = 2; NFRAMES = 3*24*4 # bins per hour * 24 hours * (transition + state)

@@ -1,10 +1,10 @@
 #' ---
 #' title: "Cleaning and Pre-Processing Divvy Bikeshare Data"
 #' author: "Andrew Luyt"
-#' date: "2021-07-27"
+#' date: "`r paste('<br>Last updated: ',format(Sys.Date(), '%A %B %d, %Y'),'')`"
 #' output:
-#'   html_document:
-#'    keep_md: true
+#'   github_document:
+#'    toc: true
 #' ---
 
 #' ## Purpose
@@ -24,7 +24,7 @@ library(data.table)  # use fread for speed
 library(R.utils)     # allow fread to read/write .gz
 library(tidyverse)
 library(lubridate)
-library(geosphere)   # calculate trip distances without creating sf objects
+library(geosphere)   # calculate trip distances
 
 Mode <- function(x) {
   ux <- unique(x)
@@ -61,7 +61,7 @@ df <-
 #'  We collapse these into single IDs.
 #'    - Some station names are suffixed with " (*)".  This suffix is removed.
 #'
-#' ## New variables added:
+#' ## New variables added
 #'
 #'  - `weekday`: by the start of the ride (1-7, starts Monday)
 #'  - `weekend_weekday`: Convenience variable to help visualize weekend patterns
@@ -91,6 +91,7 @@ df <-
 #+ message=FALSE
 # df2 <-  df %>% slice_head(n = 1000)  # for testing
 
+#' ## The cleaning code
 df <- df %>%
   mutate(
     trip_minutes = as.numeric(difftime(ended_at, started_at, units = "mins")),
@@ -118,8 +119,7 @@ df <- df %>%
     !is.na(end_lng),
     !is.na(end_lat),
     trip_minutes < 1440,
-    trip_minutes > 1
-  ) %>%
+    trip_minutes > 1) %>%
   # distGeo prefers to work with matrices of the form lng1 lat1, lng2 lat2,
   # and we have those four columns, which we can cbind together.
   mutate(

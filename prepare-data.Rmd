@@ -1,13 +1,12 @@
 ---
 title: "Prepare to Use the Divvy Dataset"
 author: "Andrew Luyt"
-date: "2021-07-27"
+date: "`r paste('<br>Last updated: ',format(Sys.Date(), '%A %B %d, %Y'),'')`"
 output: 
-  html_document:
-    keep_md: true
+  github_document
 ---
 
-## Executive Summary
+## Summary
 
 - Do we have the appropriate rights to use this data?
   - ![checkmark](img/checkmark.png) Yes, see "Data Rights", below.
@@ -74,7 +73,7 @@ were, based on the longitude and latitude recorded?
 **Summary: Yes, looks like it, but we won't because it isn't necessary now.**
 
 Let's see what the mean latitude & longitude is for each station name. Below,
-we see that it appears a station can be specified to about three decimal
+we see that it appears a station can be specified to three or four decimal
 places of precision.  The standard deviations of the means of the coordinates
 is about five decimal places of precision.
 At first glance the stations can indeed be clearly identified by their map
@@ -83,8 +82,8 @@ coordinates.
 Later, if we wished to pursue this imputation of data, we could do it with a
 few simple methods:
 
-- Calculate the mean longitude and latitude of each station, to three decimal
-points. Then round the coordinates of each ride to three decimal places and
+- Calculate the mean longitude and latitude of each station to about three 
+decimal points. Then round the coordinates of each ride and
 match them.
 - Train a machine learning model to predict the station name based
 on the coordinates.  As the coordinates are in a rectangular grid, a tree-based
@@ -95,23 +94,25 @@ In the context
 of finding differences between user types, prediction errors like placing a
 trip start at a station a few blocks away should not bias the analysis much, and
 would also give us an extra 10% of data to work with.
-```{r infer station name?}
+```{r infer station name, echo=FALSE, render='asis'}
 # Show more digits: the pillar package controls how tibbles display sigfigs
 options(pillar.sigfig = 6)  
 df %>% group_by(start_station_name) %>% 
-  summarise(xbar = mean(start_lng), 
-            ybar = mean(start_lat), 
+  summarise(mean_x = mean(start_lng), 
+            mean_y = mean(start_lat), 
             sd_x = sd(start_lng), 
             sd_y = sd(start_lat)) %>% 
-  head(10)
+  head(10) %>% 
+  knitr::kable()
 ```
 
-```{r show Aberdeen stations}
+```{r show Aberdeen stations, echo=FALSE, results='asis'}
 df %>% 
   filter(start_station_name == 'Aberdeen St & Jackson Blvd' | 
          start_station_name == 'Aberdeen St & Monroe St') %>% 
   distinct(across(c(start_station_name, start_lat))) %>% 
-  slice_sample(n = 10)
+  slice_sample(n = 10) %>% 
+  knitr::kable()
 ```
 
 

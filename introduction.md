@@ -1,10 +1,10 @@
 Divvy Case Study
 ================
 Andrew Luyt
-July 27, 2021
+<br>Last updated: Tuesday August 10, 2021
 
 -   [Background](#background)
--   [Business Task](#business-task)
+-   [Business Tasks](#business-tasks)
 -   [Stakeholders](#stakeholders)
 -   [Deliverables](#deliverables)
 -   [Data source](#data-source)
@@ -17,16 +17,18 @@ real-world, supplied by Motivate International Inc. which operates the
 bicycle sharing service. The data has been made available under [this
 licence.](https://www.divvybikes.com/data-license-agreement)
 
-This analysis is a capstone project to [Google’s Data Analytics
+This analysis is an exercise, a capstone project to [Google’s Data
+Analytics
 Certificate](https://www.coursera.org/professional-certificates/google-data-analytics).
 I don’t represent Motivate International Inc. or Divvy.
 
-## Business Task
+## Business Tasks
 
-**How do annual members and casual riders differ** in their use of the
-system? Consider this from the point of view of the Director of
-Marketing who desires to create a marketing campaign to **convert casual
-riders into members**.
+1.  **How do annual members and casual riders differ** in their use of
+    the system? Consider this from the point of view of e.g. the
+    Director of Marketing who desires to create a marketing campaign to
+    **convert casual riders into members**.
+2.  **What are some major system use patterns**?
 
 ## Stakeholders
 
