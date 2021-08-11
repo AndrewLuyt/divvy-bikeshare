@@ -101,14 +101,32 @@ df <- df %>%
                                 "Thursday", "Friday", "Saturday", "Sunday")),
     weekend_weekday = if_else(weekday %in% c("Saturday", "Sunday"), "weekend", "weekday"),
     month = factor(lubridate::month(started_at, abbr = TRUE, label = TRUE)),
-    start_lng_sector = round(start_lng, digits = 2),
-    start_lat_sector = round(start_lat, digits = 2),
-    end_lng_sector = round(end_lng, digits = 2),
-    end_lat_sector = round(end_lat, digits = 2),
     is_round_trip = if_else(start_station_id == end_station_id,
                             'round trip', 'a to b'),
+    # many stations IDs have duplicate names. Collapse them into one canonical name.
     start_station_name = str_replace(start_station_name, " \\(\\*\\)", ""),
-    end_station_name = str_replace(end_station_name, " \\(\\*\\)", "")) %>%
+    end_station_name = str_replace(end_station_name, " \\(\\*\\)", ""),
+    start_station_name = str_replace(start_station_name, " \\([^()]{0,}\\)", ""),
+    end_station_name = str_replace(end_station_name, "\\([^()]{0,}\\)", ""),
+    start_station_name = str_replace(start_station_name, "McClurg Ct & Illinois St", "New St & Illinois St"),
+    end_station_name = str_replace(end_station_name, "McClurg Ct & Illinois St", "New St & Illinois St"),
+    start_station_name = str_replace(start_station_name, "Drake Ave & Fullerton Ave", "St. Louis Ave & Fullerton Ave"),
+    end_station_name = str_replace(end_station_name, "Drake Ave & Fullerton Ave", "St. Louis Ave & Fullerton Ave"),
+    start_station_name = str_replace(start_station_name, "Chicago Ave & Dempster St", "Dodge Ave & Main St"),
+    end_station_name = str_replace(end_station_name, "Chicago Ave & Dempster St", "Dodge Ave & Main St"),
+    start_station_name = str_replace(start_station_name, "Malcolm X College Vaccination Site", "Malcolm X College"),
+    end_station_name = str_replace(end_station_name, "Malcolm X College Vaccination Site", "Malcolm X College"),
+    start_station_name = str_replace(start_station_name, "Ashland Ave & 73rd St", "Ashland Ave & 74th St"),
+    end_station_name = str_replace(end_station_name, "Ashland Ave & 73rd St", "Ashland Ave & 74th St"),
+    start_station_name = str_replace(start_station_name, "Halsted St & 104th St", "Western Ave & 104th St"),
+    end_station_name = str_replace(end_station_name, "Halsted St & 104th St", "Western Ave & 104th St"),
+    start_station_name = str_replace(start_station_name, "Broadway & Wilson - Truman College Vaccination Site", "Broadway & Wilson Ave"),
+    end_station_name = str_replace(end_station_name, "Broadway & Wilson - Truman College Vaccination Site", "Broadway & Wilson Ave"),
+    start_station_name = str_replace(start_station_name, "HUBBARD ST BIKE CHECKING", "Base - 2132 W Hubbard Warehouse"),
+    end_station_name = str_replace(end_station_name, "HUBBARD ST BIKE CHECKING", "Base - 2132 W Hubbard Warehouse"),
+    start_station_name = str_replace(start_station_name, "Chicago Ave & Dempster St", "Dodge Ave & Main St"),
+    end_station_name = str_replace(end_station_name, "Chicago Ave & Dempster St", "Dodge Ave & Main St")
+    ) %>%
   filter(
     start_station_name != "",
     start_station_id != "",
@@ -119,7 +137,28 @@ df <- df %>%
     !is.na(end_lng),
     !is.na(end_lat),
     trip_minutes < 1440,
-    trip_minutes > 1) %>%
+    trip_minutes > 1,
+    start_station_id != 704,    # stations whose coordinates vary wildly
+    start_station_id != 709,
+    start_station_id != "KA1503000055",
+    start_station_id != 20123,
+    end_station_id != 704,
+    end_station_id != 709,
+    start_station_id != "KA1503000055",
+    end_station_id != 20123) %>%
+  # GPS coords are not perfect. Create canonical coordinates for each station.
+  group_by(start_station_id) %>%
+  mutate(start_lng = mean(start_lng),
+         start_lat = mean(start_lat)) %>%
+  group_by(end_station_id) %>%
+  mutate(end_lng = mean(end_lng),
+         end_lat = mean(end_lat),
+         end_station_name = first(end_station_name)) %>%
+  ungroup() %>%
+  mutate(start_lng_sector = round(start_lng, digits = 2),
+         start_lat_sector = round(start_lat, digits = 2),
+         end_lng_sector = round(end_lng, digits = 2),
+         end_lat_sector = round(end_lat, digits = 2)) %>%
   # distGeo prefers to work with matrices of the form lng1 lat1, lng2 lat2,
   # and we have those four columns, which we can cbind together.
   mutate(
