@@ -1,9 +1,11 @@
 ---
 title: "Analysis: How Casual Users and Members Differ"
-author: "Andrew Luyt"
-date: "`r paste('<br>Last updated: ',format(Sys.Date(), '%A %B %d, %Y'),'')`"
-output: github_document:
+author: "Andrew Luyt, "
+date: "`r paste('Last updated: ',format(Sys.Date(), '%A %B %d, %Y'))`"
+output: 
+  github_document:
     toc: true
+always_allow_html: true
 ---
 
 ```{r setup, include=FALSE}
@@ -107,7 +109,14 @@ theme_map_dark <- theme_bw() +
         legend.justification = "top")
 ```
 
-## Executive Summary
+## Summary of Findings
+Unless otherwise stated, these findings all refer to totals or averages
+over the past year of data.
+
+Traffic patterns
+
+-todo
+
 Comparing casual users with members we find a few notable differences.
 
 -todo
@@ -440,7 +449,8 @@ boundaries_chi %>% ggplot() +
   theme_map
 ```
 
-Next let's highlight hot spots.  We'll plot only stations with over 70% casual 
+We can clearly see a division between casual use and member use. Next let's 
+highlight hot spots.  We'll plot only stations with over 70% casual 
 use and we'll also give busier stations larger dots.
 
 
@@ -461,8 +471,8 @@ stations_users %>%
   theme(legend.position = "none")
 ```
 
-Finally let's zoom in on the notable hot spot near Navy Pier.  Of all stations with
-over 70% casual use, these are the busiest.
+Finally let's zoom in on the notable hot spot near Navy Pier.  Of all stations 
+with over 70% casual use, these are the busiest.
 
 
 ```{r casual usage hot spot zoom, echo=FALSE, message=FALSE, warning=FALSE}
@@ -512,26 +522,25 @@ Navy Pier. They represent what is easily the most popular casual use desination
 anywhere in the city, demonstrating a consistent pattern of activity by casual
 users of the system.
 
-## Traffic Flow: daily patterns
+## Traffic Flow
 In our last piece of analysis we will examine the overall traffic flow for
-patterns.  First up, traffic volume at all stations.
+patterns.  First, we will animate the traffic volume at all stations
+over 20 minute intervals for a busy weekend.
 
 ```{r all traffic volume mapped}
 volume <- df %>% 
   # busiest day of the year is day 170 (June 19)
   filter(lubridate::year(started_at) == 2021, lubridate::yday(started_at) == 170) %>%
   # filter(lubridate::hour(started_at) > 11, lubridate::hour(started_at) < 15) %>%
-  # filter(lubridate::year(started_at) == 2021, between(lubridate::yday(started_at), 168, 170)) %>%
   select(started_at, start_station_id, start_lng, start_lat, member_casual) %>% 
   mutate(minute = minute(started_at),     # round time into bins
-         # minute = cut_interval(minute, n = 4, 
-         #                       labels = c("00","15","30","45")),
          minute = cut_interval(minute, n = 3, 
                                labels = c("00","20","40")),
-         started_at = 
-           parse_date_time(paste0(lubridate::date(started_at), " ", 
-                                  lubridate::hour(started_at), ":", minute),
-                           "Ymd HM")) %>% 
+         started_at =
+           format(parse_date_time(paste0(lubridate::date(started_at), " ",
+                                         lubridate::hour(started_at), ":", minute),
+                                  "Ymd HM"),
+                  "%H:%M")) %>% 
   group_by(start_station_id) %>%   # station coordinates have error, create canonical coords
   mutate(start_lng = mean(start_lng),
          start_lat = mean(start_lat)) %>% 
@@ -570,45 +579,50 @@ p <- volume %>%
           size = guide_legend(title = "Trips started", order = 2)) +
   theme_map_dark +
   transition_states(states = started_at, transition_length = 5, state_length = 0, wrap = TRUE) +
-  enter_fade() + enter_grow() 
+  enter_fade() + enter_grow(size = .7)
 
 FPS = 30;W = 600;H = 660;DTL = 3;S = paste0(W,"x",H);NFRAMES = 3*24*1*5 # minutebins*hours*days*framesperbin
 animate(plot = p, fps = FPS, nframes = NFRAMES, width = W, height = H, detail = DTL)
-anim_save("img/traffic-volume-map.mp4", p, fps = FPS, nframes = NFRAMES,
-          width=W, height=H, detail=DTL,
-          renderer = ffmpeg_renderer(options = list(s = S, b = "1200k")))
-anim_save("img/traffic-volume-map.gif", p, fps = FPS, detail = DTL, nframes = NFRAMES, width=W, height=H)
+# anim_save("img/traffic-volume-map.mp4", p, fps = FPS, nframes = NFRAMES,
+#           width=W, height=H, detail=DTL,
+#           renderer = ffmpeg_renderer(options = list(s = S, b = "1200k")))
+# anim_save("img/traffic-volume-map.gif", p, fps = FPS, detail = DTL, nframes = NFRAMES, width=W, height=H)
 ```
 
-```{r all traffic volume mapped hispeed}
+Next we'll examine the average traffic patterns in June and compare weekdays
+ & weekends.
+
+```{r all traffic volume mapped june weekday}
 volume <- df %>% 
-  # busiest day of the year is day 170 (June 19)
-  filter(lubridate::year(started_at) == 2021, lubridate::yday(started_at) == 170) %>%
-  # filter(lubridate::hour(started_at) > 10, lubridate::hour(started_at) < 13) %>%
-  # filter(lubridate::year(started_at) == 2021, between(lubridate::yday(started_at), 168, 170)) %>%
-  select(started_at, start_station_id, start_lng, start_lat, member_casual) %>% 
+  filter(lubridate::year(started_at) == 2021, month == 'Jun') %>%
+  # filter(lubridate::hour(started_at) > 11, lubridate::hour(started_at) < 15) %>%
+  select(started_at, start_station_id, start_lng, start_lat, member_casual, weekend_weekday) %>% 
   mutate(minute = minute(started_at),     # round time into bins
-         # minute = cut_interval(minute, n = 4, 
-         #                       labels = c("00","15","30","45")),
-         minute = cut_interval(minute, n = 3,
+         minute = cut_interval(minute, n = 3, 
                                labels = c("00","20","40")),
-         started_at = 
-           parse_date_time(paste0(lubridate::date(started_at), " ", 
-                                  lubridate::hour(started_at), ":", minute),
-                           "Ymd HM")) %>% 
+         started_at =
+           format(parse_date_time(paste0(lubridate::date(started_at), " ",
+                                         lubridate::hour(started_at), ":", minute),
+                                  "Ymd HM"),
+                  "%H:%M")) %>%  
   group_by(start_station_id) %>%   # station coordinates have error, create canonical coords
   mutate(start_lng = mean(start_lng),
          start_lat = mean(start_lat)) %>% 
-  group_by(start_station_id, started_at, member_casual) %>% 
+  group_by(start_station_id, started_at, weekend_weekday, member_casual) %>% 
   summarise(n = n(),
             start_lng = first(start_lng),
-            start_lat = first(start_lat)) %>% 
+            start_lat = first(start_lat),
+            weekend_weekday = first(weekend_weekday)) %>% 
   mutate(total_trips = sum(n),
          p_casual = n / total_trips) %>% 
   filter(member_casual == "casual") %>%
+  ungroup() %>%   
+  # Turn totals into average figures.  There are 22 weekdays and 8 weekends in June 2021
+  mutate(n_days = if_else(weekend_weekday == 'weekday', 22, 8),
+         n = n / n_days,
+         total_trips = total_trips / n_days) %>% 
   arrange(started_at, total_trips)  # for overplotting: last to be plotted are the largest # of trips
-  # arrange(timecode, p_casual)  # for overplotting: last to be plotted are the highest casual %
-  # arrange(timecode, p_casual * total_trips)  # for overplotting: last to be plotted are largest # of casuals
+
 
 p <- volume %>% 
   ggplot(aes(x = start_lng,
@@ -624,41 +638,145 @@ p <- volume %>%
   scale_fill_viridis(option = "viridis", labels = scales::percent) +
   scale_color_viridis(option = "viridis") +
   # scale_size_continuous(range = c(1.5, 10)) +
-  scale_size_area(max_size = 12) +
-  annotate("text", x = -87.865, y = 42.06, label = "CHICAGO", color = "grey60", cex = 10) +
+  scale_size_area(max_size = 10) +
+  # annotate("text", x = -87.865, y = 42.06, label = "CHICAGO", color = "grey60", cex = 8) +
   labs(subtitle = "This animation displays bike trips started at the more than 600 docking stations\nfor the Divvy bike sharing service. Colours display the percentage of user type\nat a station: casual users who purchase temporary passes vs annual members.",
        caption = "Andrew Luyt  2021  |  Source: Divvy") +
-  ggtitle("Bicycle use in June, 2021    {previous_state}") +
+  ggtitle("Average bicycle use in June    {previous_state}") +
   guides (color = "none", 
           fill = guide_colorbar("Casual users", order = 1),
           size = guide_legend(title = "Trips started", order = 2)) +
+  facet_wrap(~weekend_weekday) +
   theme_map_dark +
-  transition_states(states = started_at, transition_length = 1, state_length = 0, wrap = TRUE) +
-  enter_fade() + enter_grow() 
+  transition_states(states = started_at, transition_length = 5, state_length = 0, wrap = TRUE) +
+  enter_fade() + enter_grow(size = 0.7) 
 
-FPS = 30;W = 600;H = 660;DTL = 3;S = paste0(W,"x",H);NFRAMES = 24*30 # minutebins*hours*days*framesperbin
+FPS = 30;W = 800;H = 600;DTL = 3;S = paste0(W,"x",H);NFRAMES = 3*24*1*5 # minutebins*hours*days*framesperbin
 animate(plot = p, fps = FPS, nframes = NFRAMES, width = W, height = H, detail = DTL)
-anim_save("img/traffic-volume-map-june.mp4", p, fps = FPS, nframes = NFRAMES,
-          width=W, height=H, detail=DTL,
-          renderer = ffmpeg_renderer(options = list(s = S, b = "1200k")))
-anim_save("img/traffic-volume-map-june.gif", p, fps = FPS, detail = DTL, nframes = NFRAMES, width=W, height=H)
+# anim_save("img/traffic-volume-map.mp4", p, fps = FPS, nframes = NFRAMES,
+#           width=W, height=H, detail=DTL,
+#           renderer = ffmpeg_renderer(options = list(s = S, b = "1200k")))
+# anim_save("img/traffic-volume-map.gif", p, fps = FPS, detail = DTL, nframes = NFRAMES, width=W, height=H)
+```
+
+We can see a few things of note:
+
+- On weekdays traffic starts earlier and that early morning traffic is primarily 
+members on their morning commute. Member usage stays proportionally higher all 
+day than on weekends.
+- On weekends traffic is heavier, starts & ends later, and has a higher
+proportion of casual users.
+
+Let's remind ourselves of the overall traffic volume patterns over a year.
+
+```{r traffic volume linegraph}
+volume <- df %>% 
+  select(started_at, member_casual, weekend_weekday) %>% 
+  mutate(minute = minute(started_at),     # round time into bins
+         minute = cut_interval(minute, n = 3, 
+                               labels = c("00","20","40")),
+         started_at =
+           parse_date_time(paste0(lubridate::date(started_at)),
+                           "Ymd")) %>%  
+  group_by(started_at, member_casual) %>% 
+  summarise(n = n()) %>% 
+  mutate(total_trips = sum(n)) %>% 
+  ungroup() %>%   
+  # Turn totals into average figures.  There are 22 weekdays and 8 weekends in June 2021
+  arrange(started_at, total_trips)
+
+volume %>% ggplot(aes(started_at, n, color = member_casual)) +
+  geom_line()
+```
+
+Note how low the traffic is in winter, particularly for casual users. Next
+we will map the average winter traffic volume, to compare with June.
+
+```{r all traffic volume mapped winter}
+volume <- df %>% 
+  filter(month %in% c('Dec', 'Jan', 'Feb')) %>%
+  # filter(lubridate::hour(started_at) > 11, lubridate::hour(started_at) < 15) %>%
+  select(started_at, start_station_id, start_lng, start_lat, member_casual, weekend_weekday) %>% 
+  mutate(minute = minute(started_at),     # round time into bins
+         minute = cut_interval(minute, n = 3, 
+                               labels = c("00","20","40")),
+         started_at =
+           format(parse_date_time(paste0(lubridate::date(started_at), " ",
+                                         lubridate::hour(started_at), ":", minute),
+                                  "Ymd HM"),
+                  "%H:%M")) %>%  
+  group_by(start_station_id) %>%   # station coordinates have error, create canonical coords
+  mutate(start_lng = mean(start_lng),
+         start_lat = mean(start_lat)) %>% 
+  group_by(start_station_id, started_at, weekend_weekday, member_casual) %>% 
+  summarise(n = n(),
+            start_lng = first(start_lng),
+            start_lat = first(start_lat),
+            weekend_weekday = first(weekend_weekday)) %>% 
+  mutate(total_trips = sum(n),
+         p_casual = n / total_trips) %>% 
+  filter(member_casual == "casual") %>%
+  ungroup() %>%   
+  # Turn totals into average figures.  There are 64 weekdays and 26 weekends 
+  # in Dec 2020 to Feb 2021
+  mutate(n_days = if_else(weekend_weekday == 'weekday', 64, 26),
+         n = n / n_days,
+         total_trips = total_trips / n_days) %>% 
+  arrange(started_at, total_trips)  # for overplotting: last to be plotted are the largest # of trips
+
+
+p <- volume %>% 
+  ggplot(aes(x = start_lng,
+             y = start_lat,
+             group = started_at,  # important for gganimate!
+             size = total_trips,
+             fill = p_casual,
+             color = p_casual)) +
+  geom_sf(data = boundaries_chi, mapping = aes(), inherit.aes = FALSE, fill="grey60") +
+  geom_point(pch = 21) +
+  # scale_fill_distiller(palette = "RdYlBu", labels = scales::percent) +
+  # scale_color_distiller(palette = "RdYlBu") +
+  scale_fill_viridis(option = "viridis", labels = scales::percent) +
+  scale_color_viridis(option = "viridis") +
+  # scale_size_continuous(range = c(1.5, 10)) +
+  scale_size_area(max_size = 4) +
+  # annotate("text", x = -87.865, y = 42.06, label = "CHICAGO", color = "grey60", cex = 8) +
+  labs(subtitle = "This animation displays bike trips started at the more than 600 docking stations\nfor the Divvy bike sharing service. Colours display the percentage of user type\nat a station: casual users who purchase temporary passes vs annual members.",
+       caption = "Andrew Luyt  2021  |  Source: Divvy") +
+  ggtitle("Average bicycle use in Winter 2020-2021    {previous_state}") +
+  guides (color = "none", 
+          fill = guide_colorbar("Casual users", order = 1),
+          size = guide_legend(title = "Trips started", order = 2)) +
+  facet_wrap(~weekend_weekday) +
+  theme_map_dark +
+  transition_states(states = started_at, transition_length = 5, state_length = 0, wrap = TRUE) +
+  enter_fade() + enter_grow(size = 0.7) 
+
+FPS = 30;W = 800;H = 600;DTL = 3;S = paste0(W,"x",H);NFRAMES = 3*24*1*5 # minutebins*hours*days*framesperbin
+animate(plot = p, fps = FPS, nframes = NFRAMES, width = W, height = H, detail = DTL)
+# anim_save("img/traffic-volume-map-winter.mp4", p, fps = FPS, nframes = NFRAMES,
+#           width=W, height=H, detail=DTL,
+#           renderer = ffmpeg_renderer(options = list(s = S, b = "1200k")))
+# anim_save("img/traffic-volume-map-winter.gif", p, fps = FPS, detail = DTL, nframes = NFRAMES, width=W, height=H)
 ```
 
 
-
-
-
-## All traffic flow
+## Average traffic flow
 When we look at the overall traffic flow for the city, it is remarkably
 consistent, day to day and between members and casuals.  Traffic mostly flows in
 to the waterfront from all directions, and flows out *from* the waterfront
 either to the northwest or southwest, depending which side of Navy Pier
 one is on.
 
-Each arrow represents
-overall motion of all the bikes during a 10-minute period.  An arrow pointing
-northwest means that during that time the **average** motion of bikes is that direction.
-The stronger the trend, the longer the arrow.
+Each arrow represents the averaged
+motion of all the bikes during a 10-minute period.  An arrow pointing
+northwest means that during that time the average motion of bikes leaving
+a station is that direction. The stronger the trend, the longer the arrow.
+
+[*Technical note: to calculate this metric, each trip is treated as a vector
+from start station to end station.
+All vectors in a particular period of time are added end-to-end and the final vector
+is treated as the overall traffic flow.*]
 
 We'll first look at the big traffic patterns in the city.  Traffic flow from
 bike stations surrounding each arrow have been aggregated together
@@ -689,103 +807,35 @@ p <-
   ggplot(alltraffic, 
          aes(x = start_lng_sector,
              y = start_lat_sector, 
-             xend = start_lng_sector + sign(x) * log10(abs(x))/250,
-             yend = start_lat_sector + sign(y) * log10(abs(y))/250,
+             xend = start_lng_sector + sign(x) * log10(abs(x))/290,
+             yend = start_lat_sector + sign(y) * log10(abs(y))/290,
              color = angle)) +
   geom_sf(data = boundaries_chi, mapping = aes(), inherit.aes = FALSE) +
   geom_segment(arrow = arrow(length = unit(0.02, "npc")), size=1) +
   theme_map +
   theme(legend.position = "none") +
   scale_color_manual(values=c('#6B4EF3','#DC267F','#FF6100','#3FE205')) +  # colorblind-safe
-  labs(subtitle = "Arrows show the average direction of traffic flow out of each region.\nLonger arrows mean a stronger tendency for traffic to flow that direction.",
+  labs(subtitle = "Arrows show the average direction of traffic out of each region in the Divvy bike\nsharing system. Longer arrows mean a stronger tendency for traffic to flow that direction.",
        caption = "Andrew Luyt, 2021  |  Source: Divvy public data") +
   ylim(c(41.77, 42.01)) +
   xlim(c(-87.8, -87.57)) +
-  transition_states(states = timecode, transition_length = 0, state_length = 1) +
-  ggtitle("Divvy bike share, typical traffic flow: {next_state}") +
-  shadow_wake(wake_length = 0.02, size = NULL)
+  transition_states(states = timecode, transition_length = 0, state_length = 4) +
+  ggtitle("Bicycle traffic flow    {next_state}") +
+  shadow_wake(wake_length = 0.01, size = NULL) 
 
-FPS = 24; W = 600; H = 660; DTL = 2; NFRAMES = 6*24*3 # bins per hour * 24 hours * ()
+FPS = 30; W = 600; H = 660; DTL = 2; NFRAMES = 6*24*4 # bins per hour * 24 hours * ()
 animate(plot = p, fps = FPS, nframes = NFRAMES, detail=DTL, width=W, height=H)
-anim_save("img/traffic-flow-sectored.mp4", p, fps = FPS, nframes = NFRAMES,
-          detail = DTL, width=W, height=H,
-          renderer = ffmpeg_renderer(options = list(b = "1200k")))
-anim_save("img/traffic-flow-sectored.gif", p, fps = FPS, nframes = NFRAMES, 
-          detail = DTL, width=W, height=H)
-```
-
-*Technical note: to calculate this metric, each trip is treated as a vector
-from start station to end station.
-All vectors in a particular period of time are added end-to-end and the final vector
-is treated as the overall traffic flow.*
-
-## Traffic flow patterns: showing all bike stations
-
-```{r all traffic flow mapped fine detail, echo=FALSE, message=FALSE, warning=FALSE}
-alltraffic_fine <- df %>% 
-  filter(lubridate::wday(started_at) == 6) %>%
-  mutate(minute = minute(started_at),
-         minute = cut_interval(minute, n = 3, 
-                               labels = c("00","20", "40")),
-         started_at = 
-           parse_date_time(paste0(lubridate::date(started_at), " ", 
-                                  lubridate::hour(started_at), ":", minute),
-                           "Ymd HM"),
-         started_at = format(started_at, "%H:%M:%S")) %>% 
-         # minute = cut_interval(minute, n = 6, 
-         #                       labels = c("00","10","20","30","40","50"))) %>% 
-  group_by(start_station_id) %>% 
-  mutate(start_lng = mean(start_lng),
-         start_lat = mean(start_lat)) %>% 
-  group_by(started_at, start_lng, start_lat) %>%
-  summarize(start_station_id = first(start_station_id),
-            x = sum(trip_delta_x), 
-            y = sum(trip_delta_y),
-            magnitude = sqrt(x^2 + y^2),
-            n_trips = n()) %>% 
-  ungroup() %>% rowwise() %>% 
-  mutate(angle = angle_from_x_axis(y,x)) %>% 
-  ungroup() %>% 
-  # bin angles into 4 quadrants: this maps well to the diagonals of average traffic flow
-  # NB: The geom_segments don't use this variable, it's for colouring
-  mutate(angle = cut_interval(angle, n = 4, labels = 1:4)) %>%  
-  filter(n_trips > 2) %>%  # declutter map: remove rarely-used stations
-  arrange(started_at, desc(angle)) #%>% 
-
-# We'll log-transform the size of the motion vectors so the huge ones don't
-# completely dominate
-p <- 
-  ggplot(alltraffic_fine, 
-         aes(x = start_lng,
-             y = start_lat, 
-             xend = start_lng + sign(x) * log2(abs(x))/1100,
-             yend = start_lat + sign(y) * log2(abs(y))/1100,
-             color = angle,
-             group = started_at)) +
-  geom_sf(data = boundaries_chi, mapping = aes(), inherit.aes = FALSE, fill="grey95") +
-  geom_segment(size=0.6, arrow = arrow(length = unit(0.007, "npc"))) +
-  theme_map +
-  theme(legend.position = "none") +
-  scale_color_manual(values=c('#6B4EF3','#DC267F','#FF6100','#3FE205')) +  # colorblind-safe
-  # scale_color_brewer(type = 'qual', palette = "Set1") +
-  labs(subtitle = "Arrows show the average direction of traffic flow out of each station.\nLonger arrows mean a stronger tendency for traffic to flow that direction.",
-       caption = "Andrew Luyt, 2021  |  Source: Divvy public data") +
-  ylim(c(41.8, 42.0)) +
-  xlim(c(-87.8, -87.55)) +
-  transition_states(states = started_at, transition_length = 0, state_length = 4, wrap = TRUE) +
-  ggtitle("Bike traffic flow on a typical Saturday: {next_state}") +
-  #enter_fade()# + exit_fade()
-  shadow_wake(wake_length = 0.05,  wrap = TRUE)
-
-
-FPS = 30; W = 650; H = 680; DTL = 2; NFRAMES = 3*24*4 # bins per hour * 24 hours * (transition + state)
-animate(plot = p, fps = FPS, nframes = NFRAMES, width=W, height=H, detail = DTL)
-# anim_save("img/traffic-flow-detailed.mp4", p, fps = FPS, nframes = NFRAMES,
+# anim_save("img/traffic-flow-sectored.mp4", p, fps = FPS, nframes = NFRAMES,
 #           detail = DTL, width=W, height=H,
 #           renderer = ffmpeg_renderer(options = list(b = "1200k")))
-# anim_save("img/traffic-flow-detailed.gif", p, fps = FPS, nframes = NFRAMES, 
-          # detail = DTL, width=W, height=H)
+# anim_save("img/traffic-flow-sectored.gif", p, fps = FPS, nframes = NFRAMES, 
+#           detail = DTL, width=W, height=H)
 ```
+
+
+Now we'll zoom in on the area with the most activity to get a better look.
+We'll also show data at all the individual bike stations, rather than a
+regional average like we did above.
 
 ```{r all traffic flow mapped fine detail zoomed, echo=FALSE, message=FALSE, warning=FALSE}
 alltraffic_finezoom <- df %>% 
@@ -826,26 +876,23 @@ p <-
   theme_map +
   theme(legend.position = "none") +
   scale_color_manual(values=c('#6B4EF3','#DC267F','#FF6100','#3FE205')) +  # colorblind-safe
-  labs(subtitle = "Arrows show the average direction of traffic flow out of each station.\nLonger arrows mean a stronger tendency for traffic to flow that direction.") +
+  labs(subtitle = "Arrows show the average direction of traffic out of each region in the Divvy bike\nsharing system. Longer arrows mean a stronger tendency for traffic to flow that direction.",
+       caption = "Andrew Luyt, 2021  |  Source: Divvy public data") +
   ylim(c(41.85, 41.95)) +
   xlim(c(-87.75, -87.6)) +
   transition_states(states = timecode, transition_length = 0, state_length = 3) +
-  ggtitle("Divvy bike share, typical traffic flow: {next_state}") +
-  shadow_wake(wake_length = 0.03,  wrap = TRUE)
+  ggtitle("Bicycle traffic flow    {next_state}") +
+  shadow_wake(wake_length = 0.02,  wrap = TRUE)
 
-# FPS = 24; W = 325; H = 340; NFRAMES = 6*24*3 # bins per hour * 24 hours * (transition + state)
 FPS = 30; W = 650; H = 680; NFRAMES = 6*24*3 # bins per hour * 24 hours * (transition + state)
 animate(plot = p, fps = FPS, nframes = NFRAMES, width=W, height=H)
-anim_save("img/traffic-flow-zoom.mp4", p, fps = FPS, nframes = NFRAMES,
-          width=W, height=H,
-          renderer = ffmpeg_renderer(options = list(b = "1200k")))
-anim_save("img/traffic-flow-zoom.gif", p, fps = FPS, nframes = NFRAMES, width=W, height=H)
+# anim_save("img/traffic-flow-zoom.mp4", p, fps = FPS, nframes = NFRAMES,
+#           width=W, height=H,
+#           renderer = ffmpeg_renderer(options = list(b = "1200k")))
+# anim_save("img/traffic-flow-zoom.gif", p, fps = FPS, nframes = NFRAMES, width=W, height=H)
 ```
 
-```{r}
-### show any warnings encountered during knitting
-warnings()
-```
+
 
 
 
