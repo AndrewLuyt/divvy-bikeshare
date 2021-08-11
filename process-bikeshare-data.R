@@ -97,9 +97,9 @@ df <- df %>%
     trip_minutes = as.numeric(difftime(ended_at, started_at, units = "mins")),
     weekday = factor(lubridate::wday(started_at, week_start = 1),
                      levels = 1:7,
-                     labels = c("Monday", "Tuesday", "Wednesday",
-                                "Thursday", "Friday", "Saturday", "Sunday")),
-    weekend_weekday = if_else(weekday %in% c("Saturday", "Sunday"), "weekend", "weekday"),
+                     labels = c("Mon", "Tue", "Wed",
+                                "Thu", "Fri", "Sat", "Sun")),
+    weekend_weekday = if_else(weekday %in% c("Sat", "Sun"), "weekend", "weekday"),
     month = factor(lubridate::month(started_at, abbr = TRUE, label = TRUE)),
     is_round_trip = if_else(start_station_id == end_station_id,
                             'round trip', 'a to b'),
@@ -171,6 +171,12 @@ df <- df %>%
       if_else(end_lat > start_lat, trip_delta_y, (-1) * trip_delta_y),
     trip_kph = trip_distance / trip_minutes * 60) %>%
   filter(trip_kph < 70) %>%
+  # some stations were renamed - choose one canonical name
+  group_by(start_station_name) %>%
+  mutate(start_station_id = Mode(start_station_id)) %>%
+  ungroup() %>%
+  group_by(end_station_name) %>%
+  mutate(end_station_id = Mode(end_station_id)) %>%
   ungroup()
 
 fwrite(x = df, file = "./data/alldata.csv.gz")
