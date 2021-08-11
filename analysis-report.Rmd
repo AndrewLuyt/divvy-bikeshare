@@ -57,7 +57,6 @@ x.txt.size = 13  # scale the x axis ticks in many graphs
 DATA = here("data/alldata.csv.gz")
 df <- fread(
   DATA,
-  colClasses = c(start_station_id = 'character'),
   # Optimize: Some features ended up not being used, so let's skip them.
   drop = c("rideable_type", "ended_at", "end_station_name", "end_station_id", 
            "end_lat", "end_lng", "end_lat_sector", "end_lng_sector"),
@@ -405,8 +404,8 @@ percentage of casual rides that start there.
 stations <- df %>% 
   group_by(start_station_id, member_casual) %>% 
   summarise(start_station_name = Mode(start_station_name),
-            station_lng = mean(start_lng),  # there is GPS error in coords
-            station_lat = mean(start_lat),
+            station_lng = first(start_lng),
+            station_lat = first(start_lat),
             n_trips = n(),
             mean_duration = mean(trip_minutes)) %>% 
   filter(n_trips > 10)  # remove stations w/o enough data
@@ -541,9 +540,6 @@ volume <- df %>%
                                          lubridate::hour(started_at), ":", minute),
                                   "Ymd HM"),
                   "%H:%M")) %>% 
-  group_by(start_station_id) %>%   # station coordinates have error, create canonical coords
-  mutate(start_lng = mean(start_lng),
-         start_lat = mean(start_lat)) %>% 
   group_by(start_station_id, started_at, member_casual) %>% 
   summarise(n = n(),
             start_lng = first(start_lng),
@@ -604,10 +600,7 @@ volume <- df %>%
            format(parse_date_time(paste0(lubridate::date(started_at), " ",
                                          lubridate::hour(started_at), ":", minute),
                                   "Ymd HM"),
-                  "%H:%M")) %>%  
-  group_by(start_station_id) %>%   # station coordinates have error, create canonical coords
-  mutate(start_lng = mean(start_lng),
-         start_lat = mean(start_lat)) %>% 
+                  "%H:%M")) %>%
   group_by(start_station_id, started_at, weekend_weekday, member_casual) %>% 
   summarise(n = n(),
             start_lng = first(start_lng),
@@ -622,7 +615,6 @@ volume <- df %>%
          n = n / n_days,
          total_trips = total_trips / n_days) %>% 
   arrange(started_at, total_trips)  # for overplotting: last to be plotted are the largest # of trips
-
 
 p <- volume %>% 
   ggplot(aes(x = start_lng,
@@ -661,7 +653,7 @@ animate(plot = p, fps = FPS, nframes = NFRAMES, width = W, height = H, detail = 
 
 We can see a few things of note:
 
-- On weekdays traffic starts earlier and that early morning traffic is primarily 
+- On weekdays traffic starts earlier and the early morning traffic is primarily 
 members on their morning commute. Member usage stays proportionally higher all 
 day than on weekends.
 - On weekends traffic is heavier, starts & ends later, and has a higher
@@ -672,21 +664,20 @@ Let's remind ourselves of the overall traffic volume patterns over a year.
 ```{r traffic volume linegraph}
 volume <- df %>% 
   select(started_at, member_casual, weekend_weekday) %>% 
-  mutate(minute = minute(started_at),     # round time into bins
-         minute = cut_interval(minute, n = 3, 
-                               labels = c("00","20","40")),
-         started_at =
+  mutate(started_at =
            parse_date_time(paste0(lubridate::date(started_at)),
                            "Ymd")) %>%  
   group_by(started_at, member_casual) %>% 
   summarise(n = n()) %>% 
-  mutate(total_trips = sum(n)) %>% 
   ungroup() %>%   
-  # Turn totals into average figures.  There are 22 weekdays and 8 weekends in June 2021
-  arrange(started_at, total_trips)
+  arrange(started_at)
 
 volume %>% ggplot(aes(started_at, n, color = member_casual)) +
-  geom_line()
+  geom_line() +
+  labs(title = "Daily trips over the last year",
+       color = element_blank(),
+       y = "Daily trips") +
+  theme(axis.title.x = element_blank())
 ```
 
 Note how low the traffic is in winter, particularly for casual users. Next
@@ -705,9 +696,6 @@ volume <- df %>%
                                          lubridate::hour(started_at), ":", minute),
                                   "Ymd HM"),
                   "%H:%M")) %>%  
-  group_by(start_station_id) %>%   # station coordinates have error, create canonical coords
-  mutate(start_lng = mean(start_lng),
-         start_lat = mean(start_lat)) %>% 
   group_by(start_station_id, started_at, weekend_weekday, member_casual) %>% 
   summarise(n = n(),
             start_lng = first(start_lng),
@@ -743,7 +731,7 @@ p <- volume %>%
   # annotate("text", x = -87.865, y = 42.06, label = "CHICAGO", color = "grey60", cex = 8) +
   labs(subtitle = "This animation displays bike trips started at the more than 600 docking stations\nfor the Divvy bike sharing service. Colours display the percentage of user type\nat a station: casual users who purchase temporary passes vs annual members.",
        caption = "Andrew Luyt  2021  |  Source: Divvy") +
-  ggtitle("Average bicycle use in Winter 2020-2021    {previous_state}") +
+  ggtitle("Average bicycle use in winter 2020-2021    {previous_state}") +
   guides (color = "none", 
           fill = guide_colorbar("Casual users", order = 1),
           size = guide_legend(title = "Trips started", order = 2)) +
@@ -842,9 +830,6 @@ alltraffic_finezoom <- df %>%
   mutate(minute = minute(started_at),
          minute = cut_interval(minute, n = 6, 
                                labels = c("00","10","20","30","40","50"))) %>% 
-  group_by(start_station_id) %>% 
-  mutate(start_lng = mean(start_lng),
-         start_lat = mean(start_lat)) %>% 
   group_by(start_lng,
            start_lat,
            timecode = paste0(sprintf("%02d", lubridate::hour(started_at)), ":",
@@ -859,7 +844,11 @@ alltraffic_finezoom <- df %>%
   # bin angles into 4 quadrants: this maps well to the diagonals of average traffic flow
   # NB: The geom_segments don't use this variable, it's for colouring
   mutate(angle = cut_interval(angle, n = 4, labels = 1:4)) %>%  
-  filter(n_trips > 1) %>%   # declutter map: remove rarely-used stations
+  # we'll be zooming in the map, this will remove unvisualized data
+  filter(n_trips > 1,
+         between(start_lng, -87.75, -87.6),
+         between(start_lat, 41.85, 41.95),
+         ) %>%
   arrange(timecode, desc(angle))
 
 # We'll log-transform the size of the motion vectors so the huge ones don't
@@ -876,13 +865,13 @@ p <-
   theme_map +
   theme(legend.position = "none") +
   scale_color_manual(values=c('#6B4EF3','#DC267F','#FF6100','#3FE205')) +  # colorblind-safe
-  labs(subtitle = "Arrows show the average direction of traffic out of each region in the Divvy bike\nsharing system. Longer arrows mean a stronger tendency for traffic to flow that direction.",
+  labs(subtitle = "Arrows show the average direction of traffic out of each station in the Divvy bike\nsharing system. Longer arrows mean a stronger tendency for traffic to flow that direction.",
        caption = "Andrew Luyt, 2021  |  Source: Divvy public data") +
   ylim(c(41.85, 41.95)) +
   xlim(c(-87.75, -87.6)) +
   transition_states(states = timecode, transition_length = 0, state_length = 3) +
-  ggtitle("Bicycle traffic flow    {next_state}") +
-  shadow_wake(wake_length = 0.02,  wrap = TRUE)
+  ggtitle("Bicycle traffic flow    {next_state}") 
+  # shadow_wake(wake_length = 0.005,  wrap = TRUE)
 
 FPS = 30; W = 650; H = 680; NFRAMES = 6*24*3 # bins per hour * 24 hours * (transition + state)
 animate(plot = p, fps = FPS, nframes = NFRAMES, width=W, height=H)

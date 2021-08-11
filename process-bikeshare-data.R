@@ -171,11 +171,6 @@ df <- df %>%
       if_else(end_lat > start_lat, trip_delta_y, (-1) * trip_delta_y),
     trip_kph = trip_distance / trip_minutes * 60) %>%
   filter(trip_kph < 70) %>%
-  group_by(start_station_name) %>%
-  mutate(start_station_id = Mode(start_station_id)) %>%
-  ungroup() %>%
-  group_by(end_station_name) %>%
-  mutate(end_station_id = Mode(end_station_id)) %>%
   ungroup()
 
 fwrite(x = df, file = "./data/alldata.csv.gz")
