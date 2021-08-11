@@ -52,8 +52,6 @@ Sector <- function(coord) {
   coord / 100
 }
 
-x.txt.size = 13  # scale the x axis ticks in many graphs
-
 DATA = here("data/alldata.csv.gz")
 df <- fread(
   DATA,
@@ -87,7 +85,8 @@ boundaries_chi <- boundaries_chi %>%
 default_theme <- theme_set(theme_bw())
 theme_update(panel.grid = element_blank(),
              legend.justification = "top",
-             plot.title = element_text(size=14, face="bold"))
+             plot.title = element_text(size=14, face="bold"),
+             axis.text.x = element_text(size = 13))
 
 theme_map <- theme_bw() +
   theme(axis.title = element_blank(), 
@@ -138,8 +137,7 @@ df %>%
   geom_text(aes(label = scales::comma(n)), 
             vjust = 2.1,
             size = 5) +
-  theme(axis.text.x = element_text(size = x.txt.size),
-        legend.position = "none")
+  theme(legend.position = "none")
 ```
 
 Casual use doubles on the weekend, even exceeding member use. 
@@ -204,8 +202,7 @@ df %>%
   geom_text(aes(label = round(mean_trip_distance, digits = 1)), 
             vjust = 2.1,
             size = 5) +
-  theme(legend.position = "none",
-        axis.text.x = element_text(size = x.txt.size))
+  theme(legend.position = "none")
 ```
 
 
@@ -262,8 +259,7 @@ df %>%
   geom_text(aes(label = round(mean_ride_length, digits = 1)), 
             vjust = 2.1,
             size = 5) +
-  theme(legend.position = "none",
-        axis.text.x = element_text(size = x.txt.size))
+  theme(legend.position = "none")
 ```
 
 Seasonally, casual rides have a large amount of variation. The small number of
@@ -280,8 +276,7 @@ df %>%
   geom_text(aes(label = round(mean_ride_length, digits = 0)), 
             vjust = 2.1,
             size = 4) +
-  theme(axis.text.x = element_text(size = x.txt.size),
-        legend.title = element_blank())
+  theme(legend.title = element_blank())
 ```
 
 ## Pleasure cruises?
@@ -360,8 +355,7 @@ df %>%
   geom_text(aes(label = round(mean_kph, digits = 1)), 
             vjust = 2.1,
             size = 5) +
-  theme(legend.position = "none",
-        axis.text.x = element_text(size = x.txt.size))
+  theme(legend.position = "none")
 ```
 
 We now know that members ride more often and casuals ride longer - so who rides the 
@@ -383,8 +377,7 @@ df %>% group_by(member_casual) %>%
   stat_summary(fun = sum, 
                geom="text", 
                aes(label=scales::comma(total_minutes)), vjust = 2, size=5) +
-  theme(legend.position = "none", 
-        axis.text.x = element_text(size=x.txt.size))
+  theme(legend.position = "none")
 ```
 
 Since casual users spend so much more time in the saddle, it might be a
