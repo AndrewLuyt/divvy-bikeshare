@@ -156,7 +156,7 @@ df <- df %>%
     start_station_id != 20123,
     end_station_id != 704,
     end_station_id != 709,
-    start_station_id != "KA1503000055",
+    end_station_id != "KA1503000055",
     end_station_id != 20123) %>%
   # GPS coords have some random error. Create canonical coordinates for each station.
   group_by(start_station_id) %>%
