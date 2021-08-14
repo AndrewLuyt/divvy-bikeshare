@@ -1287,29 +1287,6 @@ ggplot(dow_hour_vec, aes(x=0, y=0, xend=x, yend=y, color=hour)) +
 
 
 
-## TODO
-
-- Bike Motion maps: calculate total "bike miles" moved in a certain direction
-  to make the abstract arrows more concrete.
-    - **A  grid of arrows like a direction field**: aggregate into rectangles like before, calculate
-    the averate motion per rect and create an arrow, and map all the arrows
-    at the center of the squares!
-      - This could be animated by the hour.... giving **a traffic flow like
-      a bed of seagrass flowing in the tide...**
-- visualize timelapse behaviour
-  - trips starting from a sector, with scrubbable hour (tableau!)
-    - or as an animation
-  - and similarly, ending at a sector..
-- Can you draw a map of LINES connecting start and end points for
-    trips..?
-  - or similarly, for e.g. 4-4:59pm, a cloud of dots in two colours,
-      trips started and trips ended, at every location.
-- What were the busiest casual days? Holidays? Sports events?
-  - Where was the traffic starting and ending?
-
-
-
-
 
 
 

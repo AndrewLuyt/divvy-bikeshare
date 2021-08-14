@@ -1,7 +1,7 @@
 ---
 title: "Analysis: Chicago's *Divvy* Bike Share"
-author: "Andrew Luyt, "
-date: "`r paste('last updated ',format(Sys.Date(), '%A %B %d, %Y'))`"
+author: "Andrew Luyt"
+date: "`r paste('<br>Last updated ',format(Sys.Date(), '%A %B %d, %Y'))`"
 output: 
   github_document:
     toc: true
@@ -115,7 +115,7 @@ theme_map_dark <- theme_bw() +
 
 ------------------------------------------------------------------------
 
-![Animated map of averaged bicycle traffic volume in Chicago in June showing complex patterns of activity](analysis-report_files/figure-gfm/all traffic volume mapped june weekday-1.gif)
+![Animated map of averaged bicycle traffic volume in Chicago in June showing regular patterns of activity](analysis-report_files/figure-gfm/all traffic volume mapped june weekday-1.gif)
 
 ## Introduction & Background
 *Motivate International Inc* runs the **Divvy** bike sharing service in Chicago.
@@ -207,10 +207,10 @@ p <- volume %>%
 
 FPS = 30;W = 600;H = 660;DTL = 3;S = paste0(W,"x",H);NFRAMES = 3*24*1*6 # minutebins*hours*days*framesperbin
 animate(plot = p, fps = FPS, nframes = NFRAMES, width = W, height = H, detail = DTL)
-# anim_save("img/traffic-volume-map.mp4", p, fps = FPS, nframes = NFRAMES,
+# anim_save("export/traffic-volume-map.mp4", p, fps = FPS, nframes = NFRAMES,
 #           width=W, height=H, detail=DTL,
 #           renderer = ffmpeg_renderer(options = list(s = S, b = "1200k")))
-# anim_save("img/traffic-volume-map.gif", p, fps = FPS, detail = DTL, nframes = NFRAMES, width=W, height=H)
+# anim_save("export/traffic-volume-map.gif", p, fps = FPS, detail = DTL, nframes = NFRAMES, width=W, height=H)
 ```
 
 The rest of this section will tease out structure from this somewhat chaotic
@@ -478,10 +478,10 @@ p <- volume %>%
 
 FPS = 30;W = 860;H = 600;DTL = 3;S = paste0(W,"x",H);NFRAMES = 3*24*1*6 # minutebins*hours*days*framesperbin
 animate(plot = p, fps = FPS, nframes = NFRAMES, width = W, height = H, detail = DTL)
-# anim_save("img/traffic-volume-map-weekday-weekend.mp4", p, fps = FPS, nframes = NFRAMES,
+# anim_save("export/traffic-volume-map-weekday-weekend.mp4", p, fps = FPS, nframes = NFRAMES,
 #           width=W, height=H, detail=DTL,
 #           renderer = ffmpeg_renderer(options = list(s = S, b = "1200k")))
-# anim_save("img/traffic-volume-map-weekday-weekend.gif", p, fps = FPS, detail = DTL, nframes = NFRAMES, width=W, height=H)
+# anim_save("export/traffic-volume-map-weekday-weekend.gif", p, fps = FPS, detail = DTL, nframes = NFRAMES, width=W, height=H)
 ```
 
 We can see a few things of note as we pay attention to the colouring:
@@ -576,10 +576,10 @@ p <- volume %>%
 
 FPS = 30;W = 800;H = 600;DTL = 3;S = paste0(W,"x",H);NFRAMES = 3*24*1*6 # minutebins*hours*days*framesperbin
 animate(plot = p, fps = FPS, nframes = NFRAMES, width = W, height = H, detail = DTL)
-# anim_save("img/traffic-volume-map-winter.mp4", p, fps = FPS, nframes = NFRAMES,
+# anim_save("export/traffic-volume-map-winter.mp4", p, fps = FPS, nframes = NFRAMES,
 #           width=W, height=H, detail=DTL,
 #           renderer = ffmpeg_renderer(options = list(s = S, b = "1200k")))
-# anim_save("img/traffic-volume-map-winter.gif", p, fps = FPS, detail = DTL, nframes = NFRAMES, width=W, height=H)
+# anim_save("export/traffic-volume-map-winter.gif", p, fps = FPS, detail = DTL, nframes = NFRAMES, width=W, height=H)
 ```
 
 We can clearly see the lower volume, the much higher percentage of member
@@ -608,7 +608,7 @@ end-to-end and the final vector is treated as the overall traffic flow.*
 
 ```{r all traffic flow mapped sectored, fig.alt="Animated map of averaged bicycle traffic directions in Chicago showing a clear and simple pattern of activity"}
 alltraffic <- df %>% 
-  filter(is_round_trip == 'a to b') %>%
+  filter(is_round_trip == FALSE) %>%
   mutate(minute = minute(started_at),
          minute = cut_interval(minute, n = 6, 
                                labels = c("00","10","20","30","40","50"))) %>% 
@@ -651,10 +651,10 @@ p <-
 
 FPS = 30; W = 560; H = 660; DTL = 2; NFRAMES = 6*24*4 # bins per hour * 24 hours * ()
 animate(plot = p, fps = FPS, nframes = NFRAMES, detail=DTL, width=W, height=H)
-# anim_save("img/traffic-flow-sectored.mp4", p, fps = FPS, nframes = NFRAMES,
+# anim_save("export/traffic-flow-sectored.mp4", p, fps = FPS, nframes = NFRAMES,
 #           detail = DTL, width=W, height=H,
 #           renderer = ffmpeg_renderer(options = list(b = "1200k")))
-# anim_save("img/traffic-flow-sectored.gif", p, fps = FPS, nframes = NFRAMES, 
+# anim_save("export/traffic-flow-sectored.gif", p, fps = FPS, nframes = NFRAMES, 
 #           detail = DTL, width=W, height=H)
 ```
 
@@ -669,7 +669,7 @@ regional average like we did above.
 
 ```{r all traffic flow mapped fine detail zoomed, fig.alt="Animated map of detailed bicycle traffic directions in Chicago showing a clear pattern of activity"}
 alltraffic_finezoom <- df %>% 
-  filter(is_round_trip == 'a to b') %>%
+  filter(is_round_trip == FALSE) %>%
   # filter(between(hour(started_at), 15, 18)) %>% 
   mutate(minute = minute(started_at),
          minute = cut_interval(minute, n = 6, 
@@ -721,10 +721,10 @@ p <-
 
 FPS = 30; W = 680; H = 680; NFRAMES = 6*24*4 # bins per hour * 24 hours * (transition + state)
 animate(plot = p, fps = FPS, nframes = NFRAMES, width=W, height=H)
-# anim_save("img/traffic-flow-zoom.mp4", p, fps = FPS, nframes = NFRAMES,
+# anim_save("export/traffic-flow-zoom.mp4", p, fps = FPS, nframes = NFRAMES,
 #           width=W, height=H,
 #           renderer = ffmpeg_renderer(options = list(b = "1200k")))
-# anim_save("img/traffic-flow-zoom.gif", p, fps = FPS, nframes = NFRAMES, width=W, height=H)
+# anim_save("export/traffic-flow-zoom.gif", p, fps = FPS, nframes = NFRAMES, width=W, height=H)
 ```
 
 
@@ -747,7 +747,7 @@ pc <- df %>%
   summarise(n_trips = n(), 
             avg_trip_minutes = round(mean(trip_minutes), 0)) %>% 
   mutate(percent_of_trips = n_trips / sum(n_trips)) %>% 
-  filter(is_round_trip == 'round trip') %>% 
+  filter(is_round_trip == TRUE) %>% 
   select(member_casual, n_trips, avg_trip_minutes, percent_of_trips) %>% 
   rename("Rider Type" = member_casual,
          "Pleasure cruises" = n_trips,
@@ -774,7 +774,7 @@ df %>%
   group_by(month, member_casual, is_round_trip) %>% 
   summarise(n = n()) %>% 
   mutate(percent_of_rides = n / sum(n) * 100) %>% 
-  filter(is_round_trip == "round trip") %>%
+  filter(is_round_trip == TRUE) %>%
   ggplot(aes(x = month, y = percent_of_rides, fill = member_casual)) +
   geom_col() +
   facet_wrap(~member_casual, ncol = 2) +
@@ -796,7 +796,7 @@ demonstrates this pattern as well.
 df %>% 
   group_by(month, member_casual, is_round_trip) %>% 
   summarise(avg_ride_minutes = mean(trip_minutes)) %>% 
-  filter(is_round_trip == "round trip") %>%
+  filter(is_round_trip == TRUE) %>%
   ggplot(aes(x = month, y = avg_ride_minutes, fill = member_casual)) +
   geom_col() +
   facet_wrap(~member_casual, ncol = 2) +
@@ -809,9 +809,9 @@ df %>%
 
 Now let's map the location and average duration of these trips.
 
-```{r pleasure cruises mapped, fig.alt="Map of location and duration of pleasure cruises showing large casual use along waterfront"}
+```{r pleasure cruises mapped, fig.alt="Map of location and duration of pleasure cruises showing large casual use along waterfront", fig.width=7, fig.height=5}
 pc <- df %>% 
-  filter(is_round_trip == "round trip") %>% 
+  filter(is_round_trip == TRUE) %>% 
   filter(trip_minutes < 300)  # remove outliers, trips > 5 hours
 
 stations <- pc %>% 
@@ -893,10 +893,10 @@ p <- volume %>%
 
 FPS = 30;W = 600;H = 660;DTL = 3;S = paste0(W,"x",H);NFRAMES = 3*24*1*5 # minutebins*hours*days*framesperbin
 animate(plot = p, fps = FPS, nframes = NFRAMES, width = W, height = H, detail = DTL)
-# anim_save("img/traffic-volume-map.mp4", p, fps = FPS, nframes = NFRAMES,
+# anim_save("export/traffic-volume-map.mp4", p, fps = FPS, nframes = NFRAMES,
 #           width=W, height=H, detail=DTL,
 #           renderer = ffmpeg_renderer(options = list(s = S, b = "1200k")))
-# anim_save("img/traffic-volume-map.gif", p, fps = FPS, detail = DTL, nframes = NFRAMES, width=W, height=H)
+# anim_save("export/traffic-volume-map.gif", p, fps = FPS, detail = DTL, nframes = NFRAMES, width=W, height=H)
 ```
 
 These trips seem to follow a similar pattern to all other traffic in the city,
@@ -918,7 +918,7 @@ two and a half kilometers.
 
 ```{r avg trip distance, fig.width=5, fig.height=3, fig.alt="Bar graph showing members and casuals both averaging about 2.5 kilometers per ride"}
 df %>% 
-  filter(is_round_trip == 'a to b') %>% 
+  filter(is_round_trip == FALSE) %>% 
   group_by(member_casual) %>% 
   summarise(mean_trip_distance = mean(trip_distance)) %>% 
   ggplot(aes(member_casual, mean_trip_distance, fill = member_casual)) +
@@ -997,7 +997,7 @@ spend less time on the bikes. The graph below shows that members are about
 
 ```{r mean trip speed, fig.width=5, fig.height=3, fig.alt="Bar graph of ride speed showing members ride 30% faster on average"}
 df %>% 
-  filter(is_round_trip == 'a to b') %>%  # round trips have a distance of 0
+  filter(is_round_trip == FALSE) %>%  # round trips have a distance of 0
   mutate(kph = trip_distance / (trip_minutes / 60)) %>% 
   group_by(member_casual) %>% 
   summarise(mean_kph = mean(kph)) %>% 

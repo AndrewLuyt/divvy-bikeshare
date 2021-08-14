@@ -1,12 +1,12 @@
 Analysis: Chicago’s *Divvy* Bike Share
 ================
-Andrew Luyt,
-last updated Friday August 13, 2021
+Andrew Luyt
+<br>Last updated Friday August 13, 2021
 
 ------------------------------------------------------------------------
 
 ![Animated map of averaged bicycle traffic volume in Chicago in June
-showing complex patterns of
+showing regular patterns of
 activity](analysis-report_files/figure-gfm/all%20traffic%20volume%20mapped%20june%20weekday-1.gif)
 
 ## Introduction & Background

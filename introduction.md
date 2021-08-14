@@ -1,14 +1,7 @@
 Divvy Case Study
 ================
 Andrew Luyt
-<br>Last updated: Tuesday August 10, 2021
-
--   [Background](#background)
--   [Business Tasks](#business-tasks)
--   [Stakeholders](#stakeholders)
--   [Deliverables](#deliverables)
--   [Data source](#data-source)
--   [Data checklist](#data-checklist)
+<br>Last updated: Friday August 13, 2021
 
 ## Background
 
@@ -24,17 +17,9 @@ I don’t represent Motivate International Inc. or Divvy.
 
 ## Business Tasks
 
-1.  **How do annual members and casual riders differ** in their use of
-    the system? Consider this from the point of view of e.g. the
-    Director of Marketing who desires to create a marketing campaign to
-    **convert casual riders into members**.
-2.  **What are some major system use patterns**?
-
-## Stakeholders
-
--   The Director of Marketing, in charge of designing the campaign
--   The Divvy executive team who will approve or deny the marketing
-    campaign
+1.  How do annual members and casual riders differ in their use of the
+    system?
+2.  What are some major system use patterns?
 
 ## Deliverables
 
@@ -45,8 +30,6 @@ Produce a report with the following deliverables:
 -   Detailed descriptions of data cleaning and manipulation performed
 -   A summary of your analysis
 -   Supporting visualizations and key findings
--   Top three recommendations to the Director of Marketing to
-    successfully implement the marketing campaign
 
 ## Data source
 

@@ -1,7 +1,7 @@
 Prepare to Use the Divvy Dataset
 ================
 Andrew Luyt
-<br>Last updated: Tuesday August 10, 2021
+<br>Last updated: Friday August 13, 2021
 
 ## Summary
 
@@ -157,13 +157,13 @@ to work with.
 
 | start\_station\_name       | start\_lat |
 |:---------------------------|-----------:|
-| Aberdeen St & Monroe St    |   41.88053 |
-| Aberdeen St & Jackson Blvd |   41.87778 |
-| Aberdeen St & Monroe St    |   41.88043 |
-| Aberdeen St & Jackson Blvd |   41.87774 |
-| Aberdeen St & Jackson Blvd |   41.87768 |
-| Aberdeen St & Jackson Blvd |   41.87770 |
-| Aberdeen St & Monroe St    |   41.88036 |
-| Aberdeen St & Jackson Blvd |   41.87771 |
-| Aberdeen St & Jackson Blvd |   41.87778 |
 | Aberdeen St & Monroe St    |   41.88037 |
+| Aberdeen St & Jackson Blvd |   41.87773 |
+| Aberdeen St & Jackson Blvd |   41.87775 |
+| Aberdeen St & Jackson Blvd |   41.87772 |
+| Aberdeen St & Jackson Blvd |   41.87775 |
+| Aberdeen St & Jackson Blvd |   41.87770 |
+| Aberdeen St & Jackson Blvd |   41.87770 |
+| Aberdeen St & Monroe St    |   41.88056 |
+| Aberdeen St & Jackson Blvd |   41.87783 |
+| Aberdeen St & Monroe St    |   41.88052 |

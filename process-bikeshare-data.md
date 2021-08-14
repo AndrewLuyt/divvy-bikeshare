@@ -1,7 +1,7 @@
 Cleaning and Pre-Processing Divvy Bikeshare Data
 ================
 Andrew Luyt
-<br>Last updated: Tuesday August 10, 2021
+<br>Last updated: Friday August 13, 2021
 
 -   [Purpose](#purpose)
 -   [Data Issues Resolved](#data-issues-resolved)
@@ -28,16 +28,17 @@ library(tidyverse)
 library(lubridate)
 library(geosphere)   # calculate trip distances
 
+# the "mode" from statistics - the most frequently occurring value
 Mode <- function(x) {
-  ux <- unique(x)
-  ux[which.max(tabulate(match(x, ux)))]
+  unique_vals <- unique(x)
+  unique_vals[which.max(tabulate(match(x, unique_vals)))]
 }
 ```
 
 ``` r
 # Don't include trip_id (it's just a unique string ID) and dropping it
 # cuts memory significantly.
-# Factors are slower to read but also reduce memory consumption.
+# Use factors to reduce memory consumption on my poor laptop
 df <-
   list.files(path = "./data",
              pattern = "*-divvy-tripdata.csv.gz",
@@ -45,7 +46,7 @@ df <-
   map_df(~fread(.,
                 select= (2:13),
                 colClasses = c(start_station_id = 'character',
-                                  end_station_id = 'character'),
+                               end_station_id = 'character'),
                 stringsAsFactors = TRUE))
 ```
 
@@ -53,21 +54,21 @@ df <-
 
 We drop rows to remove incomplete, probably-corrupt, or irrelevant data:
 
--   Blank station information: we need to know where trips start and
+-   **Blank station information:** we need to know where trips start and
     end.
--   Huge or tiny trip times: are these bikes stolen, lost, or broken,
-    then brought back into service? Did someone undock a bike, then
-    change their mind? Is it some sort of internal system test? Whatever
-    the cause, these outliers are irrelevant for casual vs member
-    analysis.
+-   **Huge or tiny trip times:** are these bikes stolen, lost, or
+    broken, then brought back into service? Did someone undock a bike,
+    then change their mind? Is it some sort of internal system test?
+    Whatever the cause, these outliers are irrelevant for casual vs
+    member analysis.
     -   We filter out any trips longer than 24 hours or shorter than 1
         minute
--   impossible speeds: remove any trips with an estimated speed over
+-   **Impossible speeds:** remove any trips with an estimated speed over
     70kph. This represents fewer than 20 trips at time of writing.
--   Station names can have multiple station IDs (did they get
-    re-numbered?) We collapse these into single IDs.
-    -   Some station names are suffixed with " (\*)". This suffix is
-        removed.
+-   Station names can have **multiple station IDs or names** (did they
+    get re-numbered?) We collapse these into single IDs/names.
+-   **Some station names are suffixed** with " (\*)" or other patterns.
+    This suffix is removed.
 
 ## New variables added
 
@@ -77,9 +78,9 @@ We drop rows to remove incomplete, probably-corrupt, or irrelevant data:
 -   `month`: Abbreviated, by the start of the ride
 -   Four `sector` variables: a rectangular area on the map. Created by
     rounding longitude & latitude to two decimal points.
-    -   Interpreted as a geographical **area** or “bin” where a trip
-        starts or ends, as opposed to a point. Meant as a convenient
-        aggregating measure for later analysis.
+    -   Interpreted as a geographical **area** or “bin” where a station
+        exists, as opposed to a point. Meant as a convenient aggregating
+        measure for later analysis.
 -   `trip_minutes`: Some trips are of negative duration and will be
     filtered out later. Online research suggests that some of this comes
     from Divvy taking bikes in and out of service for quality control
@@ -88,7 +89,7 @@ We drop rows to remove incomplete, probably-corrupt, or irrelevant data:
     and north are positive values, west and south are negative.
 -   `is_round_trip`: a boolean flag that shows if the trip started and
     ended at the same station. Meant to distinguish between commute-type
-    trips and pleasure cruises, and filter out trip\_distance=0.
+    trips and pleasure cruises, and filter out trip distances of 0.
 -   `trip_distance`: straight-line distance (km) from start to finish.
     This is a proxy for the actual trip path as ridden, which is not
     available in the dataset. It will always be smaller than reality.
@@ -98,10 +99,6 @@ We drop rows to remove incomplete, probably-corrupt, or irrelevant data:
     an underestimate, this speed is faster than reality. However, it
     will be useful as a *relative comparison* between groups.
 
-``` r
-# df2 <-  df %>% slice_head(n = 1000)  # for testing
-```
-
 ## The cleaning code
 
 ``` r
@@ -110,17 +107,18 @@ df <- df %>%
     trip_minutes = as.numeric(difftime(ended_at, started_at, units = "mins")),
     weekday = factor(lubridate::wday(started_at, week_start = 1),
                      levels = 1:7,
-                     labels = c("Monday", "Tuesday", "Wednesday",
-                                "Thursday", "Friday", "Saturday", "Sunday")),
-    weekend_weekday = if_else(weekday %in% c("Saturday", "Sunday"), "weekend", "weekday"),
+                     labels = c("Mon", "Tue", "Wed",
+                                "Thu", "Fri", "Sat", "Sun")),
+    weekend_weekday = if_else(weekday %in% c("Sat", "Sun"), "weekend", "weekday"),
     month = factor(lubridate::month(started_at, abbr = TRUE, label = TRUE)),
     is_round_trip = if_else(start_station_id == end_station_id,
-                            'round trip', 'a to b'),
-    # many stations IDs have duplicate names. Collapse them into one canonical name.
+                            TRUE, FALSE),
+    # remove suffixes like (*) or (TEMP)
     start_station_name = str_replace(start_station_name, " \\(\\*\\)", ""),
     end_station_name = str_replace(end_station_name, " \\(\\*\\)", ""),
     start_station_name = str_replace(start_station_name, " \\([^()]{0,}\\)", ""),
     end_station_name = str_replace(end_station_name, "\\([^()]{0,}\\)", ""),
+    # many stations IDs have duplicate names. Collapse them into one canonical name.
     start_station_name = str_replace(start_station_name, "McClurg Ct & Illinois St", "New St & Illinois St"),
     end_station_name = str_replace(end_station_name, "McClurg Ct & Illinois St", "New St & Illinois St"),
     start_station_name = str_replace(start_station_name, "Drake Ave & Fullerton Ave", "St. Louis Ave & Fullerton Ave"),
@@ -151,7 +149,8 @@ df <- df %>%
     !is.na(end_lat),
     trip_minutes < 1440,
     trip_minutes > 1,
-    start_station_id != 704,    # stations whose coordinates vary wildly
+    # stations whose coordinates vary wildly
+    start_station_id != 704,
     start_station_id != 709,
     start_station_id != "KA1503000055",
     start_station_id != 20123,
@@ -159,15 +158,15 @@ df <- df %>%
     end_station_id != 709,
     start_station_id != "KA1503000055",
     end_station_id != 20123) %>%
-  # GPS coords are not perfect. Create canonical coordinates for each station.
+  # GPS coords have some random error. Create canonical coordinates for each station.
   group_by(start_station_id) %>%
   mutate(start_lng = mean(start_lng),
-         start_lat = mean(start_lat)) %>%
+         start_lat = mean(start_lat),
+         start_station_name = first(start_station_name)) %>%
   group_by(end_station_id) %>%
   mutate(end_lng = mean(end_lng),
          end_lat = mean(end_lat),
          end_station_name = first(end_station_name)) %>%
-  ungroup() %>%
   mutate(start_lng_sector = round(start_lng, digits = 2),
          start_lat_sector = round(start_lat, digits = 2),
          end_lng_sector = round(end_lng, digits = 2),
@@ -184,9 +183,9 @@ df <- df %>%
       if_else(end_lat > start_lat, trip_delta_y, (-1) * trip_delta_y),
     trip_kph = trip_distance / trip_minutes * 60) %>%
   filter(trip_kph < 70) %>%
+  # some stations were renamed - choose one canonical name
   group_by(start_station_name) %>%
   mutate(start_station_id = Mode(start_station_id)) %>%
-  ungroup() %>%
   group_by(end_station_name) %>%
   mutate(end_station_id = Mode(end_station_id)) %>%
   ungroup()
