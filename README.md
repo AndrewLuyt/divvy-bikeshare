@@ -24,3 +24,4 @@ analysis.
     part** <br>![Animated map of bicycle traffic flow in Chicago showing
     four clear clusters of
     motion](analysis-report_files/figure-gfm/all%20traffic%20flow%20mapped%20fine%20detail%20zoomed-1.gif)
+
