@@ -5,7 +5,7 @@ date: "`r paste('<br>Last updated ',format(Sys.Date(), '%A %B %d, %Y'))`"
 output: 
   github_document:
     toc: true
-    toc_depth: 1
+    toc_depth: 2
 always_allow_html: true
 ---
 
@@ -271,7 +271,6 @@ We can clearly see a division between casual use and member use.
 ### Member and casual use hot spots
 Next we highlight stations that attract a particular type of user.
 
-
 ```{r member vs casual usage map over 70, fig.alt = "Map of bike stations with high proportions of member or casual user showing distinct geographical differences"}
 # Map the member hot spots: stations over 75% member use, on average
 top70 <- stations_users %>% 
@@ -294,7 +293,6 @@ ggplot(top70,
 ```
 
 Finally let's zoom in on the notable hot spot near Navy Pier.  
-
 
 ```{r member vs casual usage map over 70 zoom, fig.width=9.5, fig.height = 6, fig.alt = "Map of high volume bike stations clustered on Chicago's waterfront"}
 # Map the member hot spots: stations over 70% member use, on average
@@ -350,7 +348,6 @@ We saw above some clear geographic patterns in user type.  A good next
 question is: between members and casuals, who rides most often?  Below
 we see that members take the majority of rides, about 30% more. 
 
-
 ```{r who rides most often, fig.width=5, fig.height=3, fig.alt="Bar graph of total rides by user type showing members ride 30% more often"}
 df %>% 
   group_by(member_casual) %>% 
@@ -367,9 +364,6 @@ df %>%
             size = 5) +
   theme(legend.position = "none")
 ```
-
-
-
 
 #### Rides by hour
 
@@ -422,7 +416,6 @@ casual use doubles on the weekend.
 ### Weekdays vs Weekends
 Here we explore the increase in weekend casual use by comparing weekdays and 
 weekends in June. Colours will display the average type of rider.
-
 
 ```{r all traffic volume mapped june weekday, fig.alt="Animated map of averaged bicycle traffic volume in Chicago in June showing complex patterns of activity"}
 
@@ -516,7 +509,6 @@ use.
 
 ### Winter use animated
 
-
 ```{r all traffic volume mapped winter, fig.alt="Animated map of averaged bicycle traffic volume in Chicago in winter showing lower volume and lower casual use"}
 volume <- df %>% 
   filter(month %in% c('Dec', 'Jan', 'Feb')) %>%
@@ -545,7 +537,6 @@ volume <- df %>%
          n = n / n_days,
          total_trips = total_trips / n_days) %>% 
   arrange(started_at, total_trips)  # for overplotting: last to be plotted are the largest # of trips
-
 
 p <- volume %>% 
   ggplot(aes(x = start_lng,
@@ -585,7 +576,6 @@ animate(plot = p, fps = FPS, nframes = NFRAMES, width = W, height = H, detail = 
 We can clearly see the lower volume, the much higher percentage of member
 usage, and a *lack* of the large weekend spike in traffic volume.
 
-
 **Summarizing the previous graphs**, casual use of the system is much
 more variable than for members. It is maximized
 during summer weekends and minimized during winter weekdays. Member use
@@ -604,7 +594,6 @@ the arrow.
 from start station to end station.
 All vectors in a particular region in a particular period of time are added 
 end-to-end and the final vector is treated as the overall traffic flow.*
-
 
 ```{r all traffic flow mapped sectored, fig.alt="Animated map of averaged bicycle traffic directions in Chicago showing a clear and simple pattern of activity"}
 alltraffic <- df %>% 
@@ -727,7 +716,6 @@ animate(plot = p, fps = FPS, nframes = NFRAMES, width=W, height=H)
 # anim_save("export/traffic-flow-zoom.gif", p, fps = FPS, nframes = NFRAMES, width=W, height=H)
 ```
 
-
 At this level of detail the traffic flow is more disorderly yet the same
 overall pattern is visible.  On average, Divvy users ride in to the 
 waterfront from the western parts of the city, riders on the southern waterfront
@@ -739,7 +727,6 @@ For the traffic flow analysis we removed trips that start and end
 at the same station since, lacking minute-by-minute GPS data, they have an 
 apparent distance of zero and no direction. We believe it's likely that pleasure
 cruises make up a large portion of these rides. 
-
 
 ```{r pleasure cruise caveat, results='asis'}
 pc <- df %>% 
@@ -768,7 +755,6 @@ If our hypothesis is correct, the percentage of this type of ride should shrink
 in winter and grow in summer and be mostly confined to casual users.  This
 first graph shows exactly this pattern.
 
-
 ```{r pleasure cruises seasonal, fig.width = 7, fig.height=3.5, fig.alt="Bar graph of pleasure cruises by user type and month showing casual users greatly outnumbering members"}
 df %>% 
   group_by(month, member_casual, is_round_trip) %>% 
@@ -785,12 +771,10 @@ df %>%
         axis.text.x = element_text(size = 9))
 ```
 
-
 Second, if our idea is correct we should also see trip duration becoming longer
 in summer and shorter in winter. This should strongly affect casual users but
 have little effect on members, who have a 45-minute time limit.  This graph
 demonstrates this pattern as well.
-
 
 ```{r pleasure cruises seasonal duration, fig.width = 7, fig.height=3, fig.alt="Bar graph of pleasure cruises by user type and month showing casual users riding much longer"}
 df %>% 
@@ -842,7 +826,6 @@ This map clearly identifies that the entire waterfront is the most popular zone 
 pleasure cruising. There is a notable secondary route stretching northwest,
 inland from the waterfront. Finally we'll animate the average duration and locations
 of these cruises.
-
 
 ```{r pleasure cruises volume animated, fig.alt="Animated map of bicycle pleasure cruises showing most activity along Chicago's waterfront and south of the river"}
 volume <- pc %>% 
@@ -914,7 +897,6 @@ dominate this market segment.**
 This is a bit surprising.  For trips that start and end at different stations,
 the average trip is about the same distance for both classes of users, about 
 two and a half kilometers.  
-
 
 ```{r avg trip distance, fig.width=5, fig.height=3, fig.alt="Bar graph showing members and casuals both averaging about 2.5 kilometers per ride"}
 df %>% 
@@ -994,7 +976,6 @@ We've seen that casuals and members ride about the same distances, but members
 spend less time on the bikes. The graph below shows that members are about
 30% faster on average.
 
-
 ```{r mean trip speed, fig.width=5, fig.height=3, fig.alt="Bar graph of ride speed showing members ride 30% faster on average"}
 df %>% 
   filter(is_round_trip == FALSE) %>%  # round trips have a distance of 0
@@ -1015,7 +996,6 @@ df %>%
 ### Riding time
 We now know that members ride more often and casuals ride longer - so who rides the 
 most total minutes?  Casual users do!
-
 
 ```{r saddle time, fig.width=5, fig.height=3, fig.alt="Bar graph showing casuals have spent 76% more time riding in total than members"}
 df %>% group_by(member_casual) %>% 

@@ -27,6 +27,3 @@ The R programming language has been used for the entire analysis.
 - **[Analysis](analysis-report.md): Animations, maps, graphs - the fun part**
 <br>![Animated map of bicycle traffic flow in Chicago showing four clear clusters of motion](analysis-report_files/figure-gfm/all traffic flow mapped fine detail zoomed-1.gif)
 
-
-
-
