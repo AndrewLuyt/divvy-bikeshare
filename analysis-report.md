@@ -1,7 +1,7 @@
 Analysis: Chicago’s *Divvy* Bike Share
 ================
 Andrew Luyt
-<br>Last updated Friday August 13, 2021
+<br>Last updated Friday August 19, 2021
 
 -   [Introduction & Background](#introduction--background)
 -   [Summary of Findings](#summary-of-findings)
