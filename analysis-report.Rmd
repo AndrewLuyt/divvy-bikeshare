@@ -116,7 +116,7 @@ theme_map_dark <- theme_bw() +
 ------------------------------------------------------------------------
 
 ## Preview
-![Animated map of averaged bicycle traffic volume in Chicago in June showing regular patterns of activity](analysis-report_files/figure-gfm/all traffic volume mapped june weekday-1.gif)
+![Animated map of averaged bicycle traffic volume in Chicago in June showing regular patterns of activity](analysis-report_files/figure-gfm/all traffic flow mapped sectored-1.gif)
 
 ## Introduction & Background
 *Motivate International Inc* runs the **Divvy** bike sharing service in Chicago.
