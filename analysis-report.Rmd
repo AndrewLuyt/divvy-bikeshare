@@ -115,6 +115,7 @@ theme_map_dark <- theme_bw() +
 
 ------------------------------------------------------------------------
 
+## Preview
 ![Animated map of averaged bicycle traffic volume in Chicago in June showing regular patterns of activity](analysis-report_files/figure-gfm/all traffic volume mapped june weekday-1.gif)
 
 ## Introduction & Background
@@ -250,7 +251,7 @@ stations_users <- stations %>%
   arrange(p_trips_casual)
 ```
 
-```{r casual usage map, fig.alt = "Map of user types at all bike stations in Chicago 19 showing distinct geographical differences", fig.align='left', fig.width=4.5}
+```{r casual usage map, fig.alt = "Map of user types at all bike stations in Chicago showing distinct geographical differences", fig.align='left', fig.width=4.5}
 # Map station usage: colour stations by casual use percentage (ride start)
 chicago_map %>% ggplot() +
   geom_sf(fill = "grey95") +
@@ -317,7 +318,7 @@ ggplot(top70,
            fill = station_type)) +
   geom_sf(data = chicago_map, inherit.aes = FALSE,fill = "grey95") +
   geom_point(color="black", pch=21) +
-  geom_label_repel(data = top70, 
+  geom_label_repel(data = top70,
             mapping = aes(x = station_lng, y = station_lat, label = start_station_name),
             inherit.aes = FALSE,
             nudge_x = -0.005,
@@ -325,7 +326,7 @@ ggplot(top70,
             size=3.5,
             min.segment.length = .4,
             force_pull = 2.5) +
-  # scale_size_continuous(range = c(1.5,9)) +
+  scale_size_continuous(range = c(1.5,9)) +
   scale_size_area(max_size = 10) +
   scale_fill_viridis(discrete = TRUE, begin = .5, direction = -1) +
   labs(title = "Busy stations with a particular user type",

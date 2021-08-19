@@ -13,6 +13,7 @@ Andrew Luyt
 
 ------------------------------------------------------------------------
 
+## Preview
 ![Animated map of averaged bicycle traffic volume in Chicago in June
 showing regular patterns of
 activity](analysis-report_files/figure-gfm/all%20traffic%20volume%20mapped%20june%20weekday-1.gif)
