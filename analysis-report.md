@@ -14,6 +14,9 @@ Andrew Luyt
 ------------------------------------------------------------------------
 
 ## Preview
+Among other things, we will visualize bicycle traffic patterns in the Divvy
+network.
+
 ![Animated map of averaged bicycle traffic volume in Chicago in June
 showing regular patterns of
 activity](analysis-report_files/figure-gfm/all%20traffic%20flow%20mapped%20sectored-1.gif)
